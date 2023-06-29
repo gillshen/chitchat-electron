@@ -1,0 +1,18 @@
+{
+  "name": "chitchat",
+  "version": "0.1.0",
+  "description": "A ChatGPT client",
+  "main": "main.js",
+  "scripts": {
+    "test": "testchat",
+    "start": "electron . --enable-logging"
+  },
+  "author": "Gill Shen",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.2.0"
+  },
+  "dependencies": {
+    "openai": "^3.3.0"
+  }
+}

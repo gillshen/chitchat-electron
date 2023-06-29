@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'"
+    />
+    <link rel="stylesheet" href="index.css" />
+    <title>chitchat</title>
+  </head>
+  <body>
+    <div id="title-bar"></div>
+
+    <div id="chat-container">
+      <div id="chat-box"></div>
+
+      <div id="input-box">
+        <div id="input-textarea" contenteditable="true"></div>
+
+        <div id="send-button-container">
+          <div style="flex-grow: 1"></div>
+          <button id="send-button">
+            <img src="assets/send.svg" id="send-icon" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
