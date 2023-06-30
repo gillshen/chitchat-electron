@@ -1,4 +1,5 @@
 const { ipcRenderer } = require("electron");
+const marked = require("marked");
 
 class Chat {
   constructor(id, name) {
@@ -57,7 +58,7 @@ const sendPrompt = async () => {
 
   // Create the prompt container
   const promptBox = createMessageBox("prompt");
-  promptBox.innerHTML = prompt; // TODO convert to HTML
+  promptBox.innerHTML = mdToHtml(prompt);
 
   // Clear the input area
   textarea.innerHTML = "";
@@ -90,9 +91,18 @@ window.addEventListener("DOMContentLoaded", () => {
   // User input keydown event listener (Enter key)
   textarea.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-      sendPrompt();
+      if (event.ctrlKey || event.shiftKey) {
+        // insert a newline on ctrl+return or shift+return
+        document.execCommand("insertLineBreak");
+      } else {
+        sendPrompt(); // send the prompt on a bare return
+      }
       event.preventDefault();
     }
+    // if (event.key === "Enter" && event.ctrlKey) {
+    //   sendPrompt();
+    //   event.preventDefault();
+    // }
   });
 });
 
@@ -105,7 +115,8 @@ ipcRenderer.on("response-data", (_, { prompt, completionData }) => {
   const responseBox = createMessageBox("response");
 
   // TODO convert planitext to HTML
-  responseBox.innerHTML = completionData.choices[0].message.content;
+  const content = completionData.choices[0].message.content;
+  responseBox.innerHTML = mdToHtml(content);
   responseBox.scrollIntoView();
 
   // TODO use actual chat id
@@ -128,4 +139,14 @@ const createMessageBox = (messageType) => {
   messageRow.appendChild(messageBox);
 
   return messageBox;
+};
+
+const mdToHtml = (md) => {
+  // for removing zero-width characters, per marked.js documentation
+  const unsafe = /^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/g;
+
+  // for perserving single newlines
+  const loneNewline = /(?<=\S)[ \t]*\n(?=\S)/gm;
+
+  return marked.parse(md.replace(unsafe, "").replace(loneNewline, "  \n"));
 };

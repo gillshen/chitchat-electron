@@ -1,34 +1,34 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const { Configuration, OpenAIApi } = require("openai");
-
-console.log("setting up api...");
 
 // Set up for API requests
 const settings = JSON.parse(fs.readFileSync("api_settings.json", "utf-8"));
 const configuration = new Configuration({ apiKey: settings.key });
 const openai = new OpenAIApi(configuration);
 
-console.log("api ready");
-
 const createWindow = () => {
-  const win = new BrowserWindow({
-    width: 1000,
+  const window = new BrowserWindow({
+    width: 1100,
     height: 750,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       sandbox: false,
     },
-
     // make the window frameless
-    frame: false,
-    titleBarStyle: "hidden",
-    titleBarOverlay: { color: "white", symbolColor: "darkgray" },
-
+    // frame: false,
+    // titleBarStyle: "hidden",
+    // titleBarOverlay: { color: "white", symbolColor: "darkgray" },
     nodeIntegration: true,
   });
-  win.loadFile("index.html");
+
+  window.webContents.on("will-navigate", (event, url) => {
+    event.preventDefault();
+    shell.openExternal(url);
+  });
+
+  window.loadFile("index.html");
 };
 
 app.whenReady().then(() => {

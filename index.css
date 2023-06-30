@@ -1,16 +1,18 @@
 :root {
   --system-background: white;
   --background: white;
+  --code-background: #ddd;
 
   /* matching the height of system title bar */
   --title-bar-height: 30px;
 
   --text-border-radius: 8px;
   --button-border-radius: 4px;
+  --code-border-radius: 4px;
 
-  --text-padding: 12px 12px;
+  --text-padding: 0.4rem 1.2rem;
 
-  --main-width: 42rem;
+  --main-width: 45rem;
 }
 
 /* scrollbar appearance */
@@ -27,8 +29,7 @@
   background-color: transparent;
 
   /* make the scroll bar stops just short of touching the border */
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin: 8px;
 }
 
 /* handle */
@@ -113,6 +114,10 @@ body {
   flex-grow: 1;
   overflow: auto;
   padding: var(--text-padding);
+  /* need extra padding to look good */
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+
   /* make room for the send button */
   padding-right: 3.5rem;
   border-radius: var(--text-border-radius);
@@ -175,12 +180,37 @@ body {
 }
 
 .message {
-  line-height: 140%;
+  line-height: 150%;
   width: fit-content;
   max-width: calc(var(--main-width) - 10rem);
   padding: var(--text-padding);
   border-radius: var(--text-border-radius);
   background-color: #f3f3f3;
+  overflow-x: auto;
+}
+
+code {
+  font-family: "Consolas", "Courier New", Courier, monospace;
+  color: darkcyan;
+  border-radius: var(--code-border-radius);
+  background-color: var(--code-background);
+  display: inline-block;
+  padding: 0 5px;
+}
+
+pre {
+  overflow-x: auto;
+  background-color: var(--code-background);
+  border-radius: var(--text-border-radius);
+  padding: var(--text-border-radius);
+}
+
+pre code {
+  overflow-x: auto;
+}
+
+a {
+  color: cornflowerblue;
 }
 
 .prompt {
