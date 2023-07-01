@@ -5,6 +5,17 @@ class Chat {
   constructor(id, name) {
     this._id = id;
     this.name = name;
+
+    // two containers of request objects:
+    // {
+    //   requestId,
+    //   timestamp,
+    //   prompt,
+    //   completionContent,
+    //   finishReason,
+    //   promptTokens,
+    //   completionTokens,
+    // }
     this._history = [];
     this._context = [];
   }
@@ -12,25 +23,22 @@ class Chat {
   contextArray() {
     // generate an array of messages that can be used in API requests
     const arr = [];
-    for (const { prompt, completionData } of this._context) {
+    for (const { prompt, completionContent } of this._context) {
       arr.push({ role: "user", content: prompt });
-      arr.push({
-        role: "assistant",
-        content: completionData.choices[0].message.content,
-      });
+      arr.push({ role: "assistant", content: completionContent });
     }
     return arr;
   }
 
-  appendRequest(prompt, completionData) {
-    this._history.push({ prompt, completionData });
-    this._context.push({ prompt, completionData });
+  appendRequest(request) {
+    this._history.push(request);
+    this._context.push(request);
   }
 
   getContextLength() {
     let sum = 0;
-    for (const { completionData } of this._context) {
-      sum += completionData.usage.total_tokens;
+    for (const { promptTokens, completionTokens } of this._context) {
+      sum += promptTokens + completionTokens;
     }
     return sum;
   }
@@ -67,7 +75,14 @@ const sendPrompt = async () => {
   const chat = chats.get(1); // TODO
   chat.trimContext();
   const context = chat.contextArray();
-  ipcRenderer.send("request", { prompt, context });
+
+  ipcRenderer.send("request", {
+    chatId: 1, // TODO
+    model: "gpt-3.5-turbo", // TODO get from user input
+    prompt,
+    context,
+    parameters: {}, // TODO get from user input
+  });
 
   // Display the loading gif
   const loadingIcon = document.createElement("img");
@@ -111,17 +126,38 @@ ipcRenderer.on("response-ready", () => {
   loadingIcon.remove();
 });
 
-ipcRenderer.on("response-data", (_, { prompt, completionData }) => {
-  const responseBox = createMessageBox("response");
+ipcRenderer.on(
+  "response-success",
+  (
+    _,
+    {
+      requestId,
+      timestamp,
+      prompt,
+      completionContent,
+      finishReason,
+      promptTokens,
+      completionTokens,
+    }
+  ) => {
+    const responseBox = createMessageBox("response");
 
-  // TODO convert planitext to HTML
-  const content = completionData.choices[0].message.content;
-  responseBox.innerHTML = mdToHtml(content);
-  responseBox.scrollIntoView();
+    // TODO convert planitext to HTML
+    responseBox.innerHTML = mdToHtml(completionContent);
+    responseBox.scrollIntoView();
 
-  // TODO use actual chat id
-  chats.get(1).appendRequest(prompt, completionData);
-});
+    // TODO use actual chat id
+    chats.get(1).appendRequest({
+      requestId,
+      timestamp,
+      prompt,
+      completionContent,
+      finishReason,
+      promptTokens,
+      completionTokens,
+    });
+  }
+);
 
 ipcRenderer.on("response-error", (_, error) => {
   const errorBox = createMessageBox("error");

@@ -1,4 +1,5 @@
 node_modules/
 api_settings.json
 
+*.sqlite
 __*.*

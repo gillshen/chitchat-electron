@@ -1,7 +1,47 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
+
 const { Configuration, OpenAIApi } = require("openai");
+const sqlite3 = require("sqlite3");
+
+// Set up the chat history database
+const db = new sqlite3.Database("chatlog.sqlite");
+db.serialize(() => {
+  db.run("PRAGMA foreign_keys = ON");
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS Chat (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      system_message TEXT DEFAULT '',
+      date_started TEXT DEFAULT NULL
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS Request (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL,
+      model TEXT NOT NULL,
+      timestamp INTEGER NOT NULL,
+      parameters TEXT DEFAULT NULL, -- json field
+      finish_reason TEXT DEFAULT NULL,
+      FOREIGN KEY (chat_id) REFERENCES Chat(id) ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS Message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id INTEGER,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      tokens INTEGER DEFAULT NULL,
+      FOREIGN KEY (request_id) REFERENCES Request(id) ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+});
 
 // Set up for API requests
 const settings = JSON.parse(fs.readFileSync("api_settings.json", "utf-8"));
@@ -45,44 +85,89 @@ app.on("window-all-closed", () => {
 
 ipcMain.on(
   "request",
-  async (
-    event,
-    {
-      prompt,
-      context,
-      temperature,
-      top_p,
-      presence_penalty,
-      frequency_penalty,
-      model = "gpt-3.5-turbo",
-    }
-  ) => {
-    const params = { model, messages: [...context] };
+  async (event, { chatId, model, prompt, context, parameters }) => {
+    const params = { model, messages: [...context], ...parameters };
     params.messages.push({ role: "user", content: prompt });
-
-    if (!(temperature === undefined)) {
-      params.temperature = temperature;
-    }
-    if (!(top_p === undefined)) {
-      params.top_p = top_p;
-    }
-    if (!(presence_penalty === undefined)) {
-      params.presence_penalty = presence_penalty;
-    }
-    if (!(frequency_penalty === undefined)) {
-      params.frequency_penalty = frequency_penalty;
-    }
 
     try {
       const chatCompletion = await openai.createChatCompletion({ ...params });
       event.sender.send("response-ready");
 
-      event.sender.send("response-data", {
+      // save to database
+      const timestamp = chatCompletion.data.created * 1000;
+      const completionContent = chatCompletion.data.choices[0].message.content;
+      const finishReason = chatCompletion.data.choices[0].finish_reason;
+      const promptTokens = chatCompletion.data.usage.prompt_tokens;
+      const completionTokens = chatCompletion.data.usage.completion_tokens;
+      let requestId;
+
+      db.serialize(() => {
+        // TODO handle chat creation
+        db.run(
+          "INSERT OR IGNORE INTO Chat (id, title, system_message, date_started) VALUES (?, ?, ?, ?)",
+          chatId,
+          "New Chat",
+          "",
+          timestamp
+        );
+        db.run(
+          "INSERT INTO Request (chat_id, model, timestamp, parameters, finish_reason) VALUES (?, ?, ?, ?, ?)",
+          chatId,
+          model,
+          timestamp,
+          JSON.stringify(parameters, null, ""),
+          finishReason,
+          function (error) {
+            if (error) {
+              throw error;
+            } else {
+              requestId = this.lastID;
+              saveMessages(
+                requestId,
+                prompt,
+                completionContent,
+                promptTokens,
+                completionTokens
+              );
+            }
+          }
+        );
+      });
+
+      event.sender.send("response-success", {
+        requestId,
+        timestamp,
         prompt,
-        completionData: chatCompletion.data,
+        completionContent,
+        finishReason,
+        promptTokens,
+        completionTokens,
       });
     } catch (error) {
       event.sender.send("response-error", error);
     }
   }
 );
+
+const saveMessages = (
+  requestId,
+  prompt,
+  completionContent,
+  promptTokens,
+  completionTokens
+) => {
+  db.serialize(() => {
+    saveMessage(requestId, "user", prompt, promptTokens);
+    saveMessage(requestId, "assistant", completionContent, completionTokens);
+  });
+};
+
+const saveMessage = (requestId, role, content, tokens) => {
+  db.run(
+    "INSERT INTO Message (request_id, role, content, tokens) VALUES (?, ?, ?, ?)",
+    requestId,
+    role,
+    content,
+    tokens
+  );
+};

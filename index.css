@@ -224,5 +224,6 @@ a {
 }
 
 .error {
-  color: darkred;
+  color: #efefef;
+  background-color: indianred;
 }
