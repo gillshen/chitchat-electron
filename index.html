@@ -10,20 +10,30 @@
     <title>chitchat</title>
   </head>
   <body>
-    <div id="title-bar"></div>
+    <div id="sidebar" collapsed="false">
+      <button id="sidebar-toggle" collapsed="false">&#x2039;&#x2039;</button>
+      <button>New Chat</button>
+    </div>
 
-    <div id="chat-container">
-      <div id="chat-box"></div>
+    <div id="content">
+      <div id="chat-container">
+        <div id="title-box"></div>
 
-      <div id="input-box">
-        <div id="input-textarea" contenteditable="true"></div>
+        <div id="chat-box"></div>
 
-        <div id="send-button-container">
-          <div style="flex-grow: 1"></div>
-          <button id="send-button">
-            <img src="assets/send.svg" id="send-icon" />
-          </button>
+        <div id="resize-handle"></div>
+
+        <div id="input-box">
+          <div id="input-textarea" contenteditable="true"></div>
+
+          <div id="send-button-container">
+            <button id="send-button">
+              <img src="assets/send.svg" id="send-icon" />
+            </button>
+          </div>
         </div>
+
+        <div id="status-bar"></div>
       </div>
     </div>
   </body>

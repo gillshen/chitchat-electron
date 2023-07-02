@@ -91,16 +91,14 @@ const sendPrompt = async () => {
 
   const chatBox = document.getElementById("chat-box");
   chatBox.appendChild(loadingIcon);
-
-  // Scroll to the bottom
-  chatBox.scrollTop = chatBox.scrollHeight;
+  loadingIcon.scrollIntoView();
 };
 
 window.addEventListener("DOMContentLoaded", () => {
+  // Send button
   const textarea = document.getElementById("input-textarea");
   const sendButton = document.getElementById("send-button");
 
-  // Send button click event listener
   sendButton.addEventListener("click", sendPrompt);
 
   // User input keydown event listener (Enter key)
@@ -118,6 +116,49 @@ window.addEventListener("DOMContentLoaded", () => {
     //   sendPrompt();
     //   event.preventDefault();
     // }
+  });
+
+  // Collapsible sidebar toggle
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggle = document.getElementById("sidebar-toggle");
+
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+    if (sidebarToggle.innerText === "\u2039\u2039") {
+      sidebarToggle.innerText = "\u203a\u203a";
+    } else {
+      sidebarToggle.innerText = "\u2039\u2039";
+    }
+  });
+
+  // Resizing
+  const resizeHandle = document.getElementById("resize-handle");
+  const chatBox = document.getElementById("chat-box");
+  const inputBox = document.getElementById("input-box");
+  let startMouseY = 0;
+  let startMessageHeight = 0;
+  let startInputHeight = 0;
+
+  const handleMouseMove = (event) => {
+    const deltaY = event.clientY - startMouseY;
+    const newMessageHeight = startMessageHeight + deltaY;
+    const newInputHeight = startInputHeight - deltaY;
+
+    if (newMessageHeight >= 0 && newInputHeight >= 0) {
+      chatBox.style.height = newMessageHeight + "px";
+      inputBox.style.height = newInputHeight + "px";
+    }
+  };
+
+  resizeHandle.addEventListener("mousedown", (event) => {
+    startMouseY = event.clientY;
+    startMessageHeight = chatBox.offsetHeight;
+    startInputHeight = inputBox.offsetHeight;
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", function () {
+      document.removeEventListener("mousemove", handleMouseMove);
+    });
   });
 });
 
@@ -142,7 +183,6 @@ ipcRenderer.on(
   ) => {
     const responseBox = createMessageBox("response");
 
-    // TODO convert planitext to HTML
     responseBox.innerHTML = mdToHtml(completionContent);
     responseBox.scrollIntoView();
 
@@ -156,6 +196,10 @@ ipcRenderer.on(
       promptTokens,
       completionTokens,
     });
+
+    // Update token count
+    const statusBar = document.getElementById("status-bar");
+    statusBar.innerText = `${promptTokens + completionTokens}/4097`;
   }
 );
 
@@ -166,9 +210,19 @@ ipcRenderer.on("response-error", (_, error) => {
 });
 
 const createMessageBox = (messageType) => {
+  // messageType: "prompt" | "response" | "error"
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row", `${messageType}-row`);
   document.getElementById("chat-box").appendChild(messageRow);
+
+  const avatar = document.createElement("img");
+  avatar.classList.add("avatar");
+  if (messageType === "prompt") {
+    avatar.setAttribute("src", "assets/chat-prompt.png");
+  } else {
+    avatar.setAttribute("src", `assets/chat-${messageType}.svg`);
+  }
+  messageRow.appendChild(avatar);
 
   const messageBox = document.createElement("div");
   messageBox.classList.add("message", messageType);

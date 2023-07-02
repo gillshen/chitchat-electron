@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
@@ -62,6 +62,9 @@ const createWindow = () => {
     // titleBarOverlay: { color: "white", symbolColor: "darkgray" },
     nodeIntegration: true,
   });
+
+  // remove the menu bar
+  Menu.setApplicationMenu(null);
 
   window.webContents.on("will-navigate", (event, url) => {
     event.preventDefault();
@@ -144,6 +147,7 @@ ipcMain.on(
         completionTokens,
       });
     } catch (error) {
+      event.sender.send("response-ready");
       event.sender.send("response-error", error);
     }
   }
