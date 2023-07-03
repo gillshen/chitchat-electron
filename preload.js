@@ -59,13 +59,16 @@ const chats = new Map(); // id -> Chat
 // TODO to be created dynamically
 chats.set(1, new Chat(1, "New Chat"));
 
+let activeResponseBox = null;
+let activeAvatar = null;
+
 const sendPrompt = async () => {
   // Retrieve the prompt as plain text
   const textarea = document.getElementById("input-textarea");
   const prompt = textarea.innerText;
 
   // Create the prompt container
-  const promptBox = createMessageBox("prompt");
+  const { messageBox: promptBox } = createMessageRow("prompt");
   promptBox.innerHTML = mdToHtml(prompt);
 
   // Clear the input area
@@ -87,11 +90,14 @@ const sendPrompt = async () => {
   // Display the loading gif
   const loadingIcon = document.createElement("img");
   loadingIcon.setAttribute("id", "loading-icon");
-  loadingIcon.setAttribute("src", "assets/spinner.gif");
+  loadingIcon.setAttribute("src", "assets/loading-dots.gif");
 
-  const chatBox = document.getElementById("chat-box");
-  chatBox.appendChild(loadingIcon);
-  loadingIcon.scrollIntoView();
+  const { avatar, messageBox: responseBox } = createMessageRow("response");
+  responseBox.appendChild(loadingIcon);
+  responseBox.scrollIntoView();
+
+  activeResponseBox = responseBox;
+  activeAvatar = avatar;
 };
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -121,13 +127,14 @@ window.addEventListener("DOMContentLoaded", () => {
   // Collapsible sidebar toggle
   const sidebar = document.getElementById("sidebar");
   const sidebarToggle = document.getElementById("sidebar-toggle");
+  const toggleIcon = document.getElementById("sidebar-toggle-icon");
 
   sidebarToggle.addEventListener("click", () => {
     sidebar.classList.toggle("collapsed");
-    if (sidebarToggle.innerText === "\u2039\u2039") {
-      sidebarToggle.innerText = "\u203a\u203a";
+    if (toggleIcon.classList.toggle("collapsed")) {
+      toggleIcon.setAttribute("src", "assets/chevron-right.svg");
     } else {
-      sidebarToggle.innerText = "\u2039\u2039";
+      toggleIcon.setAttribute("src", "assets/chevron-left.svg");
     }
   });
 
@@ -181,10 +188,8 @@ ipcRenderer.on(
       completionTokens,
     }
   ) => {
-    const responseBox = createMessageBox("response");
-
-    responseBox.innerHTML = mdToHtml(completionContent);
-    responseBox.scrollIntoView();
+    activeResponseBox.innerHTML = mdToHtml(completionContent);
+    activeResponseBox.scrollIntoView();
 
     // TODO use actual chat id
     chats.get(1).appendRequest({
@@ -199,17 +204,19 @@ ipcRenderer.on(
 
     // Update token count
     const statusBar = document.getElementById("status-bar");
-    statusBar.innerText = `${promptTokens + completionTokens}/4097`;
+    statusBar.innerText = `${promptTokens + completionTokens} / 4097`;
   }
 );
 
 ipcRenderer.on("response-error", (_, error) => {
-  const errorBox = createMessageBox("error");
   console.log(error);
-  errorBox.innerHTML = error.message;
+  activeAvatar.setAttribute("src", "assets/chat-error.svg");
+  activeResponseBox.classList.remove("response");
+  activeResponseBox.classList.add("error");
+  activeResponseBox.innerHTML = error.message;
 });
 
-const createMessageBox = (messageType) => {
+const createMessageRow = (messageType) => {
   // messageType: "prompt" | "response" | "error"
   const messageRow = document.createElement("div");
   messageRow.classList.add("message-row", `${messageType}-row`);
@@ -228,7 +235,7 @@ const createMessageBox = (messageType) => {
   messageBox.classList.add("message", messageType);
   messageRow.appendChild(messageBox);
 
-  return messageBox;
+  return { messageRow, avatar, messageBox };
 };
 
 const mdToHtml = (md) => {
