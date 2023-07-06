@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 
 const { Configuration, OpenAIApi } = require("openai");
+const { encoding_for_model } = require("tiktoken");
+
 const sqlite3 = require("sqlite3");
 
 // Set up the chat history database
@@ -72,6 +74,12 @@ const settings = JSON.parse(fs.readFileSync("api_settings.json", "utf-8"));
 const configuration = new Configuration({ apiKey: settings.key });
 const openai = new OpenAIApi(configuration);
 
+const ENCODINGS = new Map();
+
+for (const model of ["gpt-3.5-turbo", "gpt-4"]) {
+  ENCODINGS.set(model, encoding_for_model(model));
+}
+
 const createWindow = () => {
   const window = new BrowserWindow({
     width: 1150,
@@ -88,11 +96,25 @@ const createWindow = () => {
   });
 
   // remove the menu bar
+  // this also removes the context menu, which shall be rebuilt below
   Menu.setApplicationMenu(null);
 
   window.webContents.on("will-navigate", (event, url) => {
     event.preventDefault();
     shell.openExternal(url);
+  });
+
+  window.webContents.on("context-menu", (_, params) => {
+    // rebuild the context menu
+    const contextMenu = Menu.buildFromTemplate([
+      { role: "cut", enabled: params.editFlags.canCut },
+      { role: "copy", enabled: params.editFlags.canCopy },
+      { role: "paste", enabled: params.editFlags.canPaste },
+      { role: "delete", enabled: params.editFlags.canDelete },
+      { type: "separator" },
+      { role: "selectall", enabled: params.editFlags.canSelectAll },
+    ]);
+    contextMenu.popup();
   });
 
   window.loadFile("index.html");
@@ -145,7 +167,7 @@ ipcMain.on(
       const timestamp = chatCompletion.data.created;
       const completionContent = chatCompletion.data.choices[0].message.content;
       const finishReason = chatCompletion.data.choices[0].finish_reason;
-      const promptTokens = chatCompletion.data.usage.prompt_tokens;
+      const promptTokens = countTokens(model, prompt);
       const completionTokens = chatCompletion.data.usage.completion_tokens;
 
       if (chatId === null) {
@@ -224,6 +246,11 @@ const saveCompletion = async (
   });
 
   return requestId;
+};
+
+const countTokens = (model, text) => {
+  const encoding = ENCODINGS.get(model);
+  return encoding.encode(text).length;
 };
 
 const execInsert = (query, params) => {

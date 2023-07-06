@@ -81,7 +81,7 @@ body {
 #sidebar-toggle {
   cursor: pointer;
   transition: left 0.3s ease-in-out; /* Animate the position change */
-  position: fixed;
+  position: absolute;
   top: 0.5rem;
   left: calc(var(--sidebar-width) - 0.8rem);
 
@@ -115,6 +115,7 @@ body {
 #chat-list {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   overflow-y: auto;
 }
 
@@ -142,7 +143,7 @@ body {
 
 .chat-button:hover {
   color: #74aa9c;
-  background-color: #e7e7e7;
+  background-color: inherit;
 }
 
 .chat-button.selected {
@@ -244,17 +245,6 @@ body {
   padding: 0 2rem;
 }
 
-#title-box {
-  border-radius: var(--text-border-radius);
-  padding: var(--text-padding);
-  margin-top: 0.5rem;
-  margin-bottom: 1.5rem;
-  /* margin-right: 5px; */
-
-  text-align: center;
-  font-weight: bold;
-}
-
 #resize-handle {
   width: 100%;
   height: 5px;
@@ -268,6 +258,8 @@ body {
   margin-top: 0.5rem;
   margin-bottom: 1rem;
   text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #chat-box,
@@ -281,6 +273,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  padding-top: 2rem;
 
   /* separation from the input box */
   margin-bottom: 1.5rem;
@@ -312,7 +305,8 @@ body {
   border-radius: var(--text-border-radius);
   line-height: 140%;
 
-  font-family: "Fira Code", "Consolas", "Courier New", Courier, monospace;
+  font-family: "Fira Code", "Consolas", "Microsoft YaHei UI", "Courier New",
+    Courier, monospace;
   font-size: 10pt;
 }
 
@@ -377,6 +371,8 @@ body {
   width: 2rem;
   height: 2rem;
   border-radius: var(--text-border-radius);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .prompt-row {

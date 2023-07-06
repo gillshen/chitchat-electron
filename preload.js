@@ -74,6 +74,9 @@ window.addEventListener("DOMContentLoaded", () => {
       document.removeEventListener("mousemove", handleMouseMove);
     });
   });
+
+  // status bar
+  showTokenCount();
 });
 
 const savedChats = new Map(); // id -> Chat
@@ -132,7 +135,8 @@ class Chat {
       this.trimContext();
     }
 
-    const arr = [];
+    const arr = [{ role: "system", content: this.systemMessage }];
+
     for (const { prompt, completionContent } of this._context) {
       arr.push({ role: "user", content: prompt });
       arr.push({ role: "assistant", content: completionContent });
@@ -146,6 +150,7 @@ class Chat {
   }
 
   getContextLength() {
+    // TODO count the system message also
     let sum = 0;
     for (const { promptTokens, completionTokens } of this._context) {
       sum += promptTokens + completionTokens;
@@ -209,6 +214,7 @@ const startNewChat = () => {
   for (const chatButton of chatList.children) {
     chatButton.classList.remove("selected");
   }
+  showTokenCount();
 };
 
 const sendPrompt = async () => {
@@ -243,7 +249,7 @@ const sendPrompt = async () => {
 
   const { avatar, messageBox: responseBox } = createMessageRow("response");
   responseBox.appendChild(loadingIcon);
-  responseBox.scrollIntoView();
+  responseBox.scrollIntoView({ behavior: "smooth", block: "end" });
 
   activeResponseBox = responseBox;
   activeAvatar = avatar;
@@ -336,6 +342,7 @@ const createChatButton = (chatId, chatTitle) => {
     if (activeChat !== selectedChat) {
       activeChat = selectedChat;
       loadHistory(selectedChat.historyArray());
+      showTokenCount();
     }
   });
 
@@ -418,12 +425,15 @@ ipcRenderer.on(
     const chatButton = document.getElementById(`chat-${chatId}`);
     chatList.insertBefore(chatButton, chatList.firstChild);
 
-    // update token count
-    const statusBar = document.getElementById("status-bar");
-    // TODO fix
-    statusBar.innerText = `${promptTokens + completionTokens} / 4097`;
+    showTokenCount();
   }
 );
+
+const showTokenCount = () => {
+  const statusBar = document.getElementById("status-bar");
+  const tokenCount = activeChat?.getContextLength() ?? 0;
+  statusBar.innerText = `${tokenCount} / 4097`;
+};
 
 ipcRenderer.on("response-error", (_, error) => {
   console.log(error);
