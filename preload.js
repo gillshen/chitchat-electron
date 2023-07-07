@@ -85,9 +85,8 @@ const savedChats = new Map(); // id -> Chat
 // null when a new chat (unsaved) is active
 let activeChat = null;
 
-let activeResponseBox = null;
-let activeAvatar = null;
-let activePrompt = "";
+let activePromptRow = null;
+let activeResponseRow = null;
 
 let requestInProgress = false;
 
@@ -173,13 +172,13 @@ const loadHistory = (historyArray) => {
   const chatBox = document.getElementById("chat-box");
   chatBox.innerHTML = "";
 
-  for (const { prompt, completionContent } of historyArray) {
-    const { messageBox: promptBox } = createMessageRow("prompt");
-    promptBox.innerHTML = mdToHtml(prompt);
-    const { messageBox: responseBox } = createMessageRow("response");
-    responseBox.innerHTML = mdToHtml(completionContent);
-    responseBox.scrollIntoView();
+  for (const { requestId, prompt, completionContent } of historyArray) {
+    const promptRow = new PromptRow(prompt);
+    promptRow.setId(requestId);
+    const responseRow = new ResponseRow(completionContent);
+    responseRow.setId(requestId);
   }
+  chatBox.scrollTop = chatBox.scrollHeight;
 };
 
 const setRequestInProgress = (flag) => {
@@ -236,24 +235,20 @@ const sendPrompt = async () => {
   });
 
   // create the prompt container
-  const { messageBox: promptBox } = createMessageRow("prompt");
-  promptBox.innerHTML = mdToHtml(prompt);
+  activePromptRow = new PromptRow(prompt);
 
   // clear the input area
   textarea.innerHTML = "";
 
-  // display the loading gif
-  const loadingIcon = document.createElement("img");
-  loadingIcon.setAttribute("id", "loading-icon");
-  loadingIcon.setAttribute("src", "assets/loading-dots.gif");
+  // show the response box with a loading gif
+  activeResponseRow = new ResponseRow();
+  activeResponseRow.showLoadingIcon();
 
-  const { avatar, messageBox: responseBox } = createMessageRow("response");
-  responseBox.appendChild(loadingIcon);
-  responseBox.scrollIntoView({ behavior: "smooth", block: "end" });
-
-  activeResponseBox = responseBox;
-  activeAvatar = avatar;
-  activePrompt = prompt;
+  // scroll to the very bottom
+  const chatBox = document.getElementById("chat-box");
+  setTimeout(() => {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }, 100);
 };
 
 ipcRenderer.on("saved-chats-retrieval-failure", (_, error) => {
@@ -288,90 +283,9 @@ ipcRenderer.on("saved-chats-ready", (_, rows) => {
     (a, b) => b.updated() - a.updated()
   );
   for (const chat of sortedChats) {
-    createChatButton(chat.id, chat.title);
+    new ChatListItem(chat.id, chat.title);
   }
 });
-
-const createChatButton = (chatId, chatTitle) => {
-  const chatList = document.getElementById("chat-list");
-
-  const chatButton = document.createElement("button");
-  chatButton.setAttribute("id", `chat-${chatId}`);
-  chatButton.setAttribute("class", "chat-button");
-  chatList.appendChild(chatButton);
-
-  const chatButtonIcon = document.createElement("img");
-  chatButtonIcon.setAttribute("src", "assets/speech-bubble.png");
-  chatButtonIcon.classList.add("chat-button-icon");
-  chatButton.appendChild(chatButtonIcon);
-
-  const chatButtonText = document.createElement("div");
-  chatButtonText.classList.add("chat-button-text");
-  chatButtonText.innerText = chatTitle;
-  chatButton.appendChild(chatButtonText);
-
-  const chatEditButton = document.createElement("button");
-  chatEditButton.classList.add("chat-edit-button");
-  chatButton.appendChild(chatEditButton);
-
-  const chatEditIcon = document.createElement("img");
-  chatEditIcon.classList.add("chat-edit-icon");
-  chatEditIcon.setAttribute("src", "assets/edit-chat.png");
-  chatEditButton.appendChild(chatEditIcon);
-
-  const chatDeleteButton = document.createElement("button");
-  chatDeleteButton.classList.add("chat-delete-button");
-  chatButton.appendChild(chatDeleteButton);
-
-  const chatDeleteIcon = document.createElement("img");
-  chatDeleteIcon.classList.add("chat-delete-icon");
-  chatDeleteIcon.setAttribute("src", "assets/delete-chat.png");
-  chatDeleteButton.appendChild(chatDeleteIcon);
-
-  chatButton.addEventListener("click", () => {
-    // disable chat selection while an API request is in progress
-    if (requestInProgress) return;
-
-    for (const button of chatList.children) {
-      if (button !== chatButton) {
-        button.classList.remove("selected");
-      }
-    }
-    chatButton.classList.add("selected");
-    const selectedChat = savedChats.get(chatId);
-    if (activeChat !== selectedChat) {
-      activeChat = selectedChat;
-      loadHistory(selectedChat.historyArray());
-      showTokenCount();
-    }
-  });
-
-  chatEditButton.addEventListener("mouseenter", () => {
-    chatEditIcon.setAttribute("src", "assets/edit-chat-hover.png");
-  });
-  chatEditButton.addEventListener("mouseleave", () => {
-    chatEditIcon.setAttribute("src", "assets/edit-chat.png");
-  });
-  chatEditButton.addEventListener("click", (event) => {
-    // TODO
-    console.log(">>> editing", chatId, chatTitle);
-    event.stopPropagation();
-  });
-
-  chatDeleteButton.addEventListener("mouseenter", () => {
-    chatDeleteIcon.setAttribute("src", "assets/delete-chat-hover.png");
-  });
-  chatDeleteButton.addEventListener("mouseleave", () => {
-    chatDeleteIcon.setAttribute("src", "assets/delete-chat.png");
-  });
-  chatDeleteButton.addEventListener("click", (event) => {
-    // TODO
-    console.log(">>> deleting", chatId, chatTitle);
-    event.stopPropagation();
-  });
-
-  return chatButton;
-};
 
 ipcRenderer.on("response-ready", () => {
   setRequestInProgress(false);
@@ -379,11 +293,20 @@ ipcRenderer.on("response-ready", () => {
 });
 
 ipcRenderer.on("chat-created", (_, { chatId, chatTitle, systemMessage }) => {
+  // update saved chats map
   activeChat = new Chat(chatId, chatTitle, systemMessage);
   savedChats.set(chatId, activeChat);
 
   // update sidebar
-  createChatButton(chatId, chatTitle);
+  const chatListItem = new ChatListItem(chatId, chatTitle);
+  chatListItem.moveToTop();
+  chatListItem.select();
+});
+
+ipcRenderer.on("chat-title-generated", (_, { chatId, chatTitle }) => {
+  const chatListItem = ChatListItem.map.get(chatId);
+  // TODO unlock this item
+  chatListItem.setText(chatTitle);
 });
 
 ipcRenderer.on(
@@ -404,8 +327,12 @@ ipcRenderer.on(
     }
   ) => {
     // show completion
-    activeResponseBox.innerHTML = mdToHtml(completionContent);
-    activeResponseBox.scrollIntoView();
+    activeResponseRow.setMarkdown(completionContent);
+    activeResponseRow.scrollIntoView();
+
+    // update prompt and response elements
+    activePromptRow.setId(requestId);
+    activeResponseRow.setId(requestId);
 
     // store request data
     activeChat.appendRequest({
@@ -420,11 +347,8 @@ ipcRenderer.on(
       completionTokens,
     });
 
-    // move the related chat button to the top (if it's not there)
-    const chatList = document.getElementById("chat-list");
-    const chatButton = document.getElementById(`chat-${chatId}`);
-    chatList.insertBefore(chatButton, chatList.firstChild);
-
+    // move the relevant chat button to top (if not there already)
+    ChatListItem.map.get(chatId).moveToTop();
     showTokenCount();
   }
 );
@@ -437,34 +361,10 @@ const showTokenCount = () => {
 
 ipcRenderer.on("response-error", (_, error) => {
   console.log(error);
-  activeAvatar.setAttribute("src", "assets/chat-error.svg");
-  activeResponseBox.classList.remove("response");
-  activeResponseBox.classList.add("error");
-  activeResponseBox.innerHTML = error.message;
-  document.getElementById("input-textarea").innerText = activePrompt;
+  activeResponseRow.showError(error);
+  // restore the prompt to the input area
+  document.getElementById("input-textarea").innerText = activePromptRow.text;
 });
-
-const createMessageRow = (messageType) => {
-  // messageType: "prompt" | "response" | "error"
-  const messageRow = document.createElement("div");
-  messageRow.classList.add("message-row", `${messageType}-row`);
-  document.getElementById("chat-box").appendChild(messageRow);
-
-  const avatar = document.createElement("img");
-  avatar.classList.add("avatar");
-  if (messageType === "prompt") {
-    avatar.setAttribute("src", "assets/chat-prompt.png");
-  } else {
-    avatar.setAttribute("src", `assets/chat-${messageType}.svg`);
-  }
-  messageRow.appendChild(avatar);
-
-  const messageBox = document.createElement("div");
-  messageBox.classList.add("message", messageType);
-  messageRow.appendChild(messageBox);
-
-  return { messageRow, avatar, messageBox };
-};
 
 const mdToHtml = (md) => {
   const sanitized = md
@@ -475,3 +375,183 @@ const mdToHtml = (md) => {
 
   return marked.parse(sanitized, { headerIds: false, mangle: false });
 };
+
+class ChatListItem {
+  constructor(chatId, chatTitle) {
+    this.id = chatId;
+    ChatListItem.map.set(chatId, this);
+
+    this.button = document.createElement("button");
+    this.button.setAttribute("id", `chat-${chatId}`);
+    this.button.setAttribute("class", "chat-button");
+    this.parent().appendChild(this.button);
+
+    this.icon = document.createElement("img");
+    this.icon.setAttribute("src", "assets/speech-bubble.png");
+    this.icon.classList.add("chat-button-icon");
+    this.button.appendChild(this.icon);
+
+    this.textDiv = document.createElement("div");
+    this.textDiv.classList.add("chat-button-text");
+    this.textDiv.innerText = chatTitle;
+    this.button.appendChild(this.textDiv);
+
+    this.editButton = document.createElement("button");
+    this.editButton.classList.add("chat-edit-button");
+    this.button.appendChild(this.editButton);
+
+    this.editIcon = document.createElement("img");
+    this.editIcon.classList.add("chat-edit-icon");
+    this.editIcon.setAttribute("src", "assets/edit-chat.png");
+    this.editButton.appendChild(this.editIcon);
+
+    this.deleteButton = document.createElement("button");
+    this.deleteButton.classList.add("chat-delete-button");
+    this.button.appendChild(this.deleteButton);
+
+    this.deleteIcon = document.createElement("img");
+    this.deleteIcon.classList.add("chat-delete-icon");
+    this.deleteIcon.setAttribute("src", "assets/delete-chat.png");
+    this.deleteButton.appendChild(this.deleteIcon);
+
+    this.button.addEventListener("click", () => {
+      // selection disabled while an API request is in progress
+      if (!requestInProgress) this.select();
+    });
+
+    this.editButton.addEventListener("mouseenter", () => {
+      this.editIcon.setAttribute("src", "assets/edit-chat-hover.png");
+    });
+    this.editButton.addEventListener("mouseleave", () => {
+      this.editIcon.setAttribute("src", "assets/edit-chat.png");
+    });
+    this.editButton.addEventListener("click", (event) => {
+      this.editTitle();
+      event.stopPropagation();
+    });
+
+    this.deleteButton.addEventListener("mouseenter", () => {
+      this.deleteIcon.setAttribute("src", "assets/delete-chat-hover.png");
+    });
+    this.deleteButton.addEventListener("mouseleave", () => {
+      this.deleteIcon.setAttribute("src", "assets/delete-chat.png");
+    });
+    this.deleteButton.addEventListener("click", (event) => {
+      this.deleteChat();
+      event.stopPropagation();
+    });
+  }
+
+  parent() {
+    return document.getElementById("chat-list");
+  }
+
+  select() {
+    for (const button of this.parent().children) {
+      button.classList.remove("selected");
+    }
+    this.button.classList.add("selected");
+
+    const selectedChat = savedChats.get(this.id);
+    if (activeChat !== selectedChat) {
+      activeChat = selectedChat;
+      loadHistory(selectedChat.historyArray());
+      showTokenCount();
+    }
+  }
+
+  moveToTop() {
+    const chatList = this.parent();
+    chatList.insertBefore(this.button, chatList.firstChild);
+  }
+
+  setText(text) {
+    this.textDiv.innerText = text;
+  }
+
+  editTitle() {
+    // TODO
+    console.log(">>> editing", this.id, this.textDiv.innerText);
+  }
+
+  deleteChat() {
+    // TODO
+    console.log(">>> deleting", this.id, this.textDiv.innerText);
+  }
+}
+
+ChatListItem.map = new Map(); // chatId -> ChatListItem instance
+
+class MessageRow {
+  constructor(messageType, text = "") {
+    this.id = null;
+    this.type = messageType;
+    this.text = "";
+
+    this.row = document.createElement("div");
+    this.row.classList.add("message-row", `${messageType}-row`);
+    this.parent().appendChild(this.row);
+
+    this.avatar = document.createElement("img");
+    this.avatar.classList.add("avatar");
+    this.row.appendChild(this.avatar);
+
+    this.messageBox = document.createElement("div");
+    this.messageBox.classList.add("message", messageType);
+    this.row.appendChild(this.messageBox);
+
+    this.setMarkdown(text);
+  }
+
+  parent() {
+    return document.getElementById("chat-box");
+  }
+
+  setId(requestId) {
+    this.row.setAttribute("id", `${this.type}-row-${requestId}`);
+  }
+
+  setMarkdown(text) {
+    this.text = text;
+    this.messageBox.innerHTML = mdToHtml(text);
+  }
+
+  scrollIntoView(options) {
+    this.row.scrollIntoView(options);
+  }
+}
+
+class PromptRow extends MessageRow {
+  constructor(text = "") {
+    super("prompt", text);
+    this.avatar.setAttribute("src", "assets/chat-prompt.png");
+  }
+}
+
+class ResponseRow extends MessageRow {
+  constructor(text = "") {
+    super("response", text);
+    this.avatar.setAttribute("src", "assets/chat-response.svg");
+    this.loadingIcon = null;
+  }
+
+  showLoadingIcon() {
+    this.loadingIcon = document.createElement("img");
+    this.loadingIcon.setAttribute("id", "loading-icon");
+    this.loadingIcon.setAttribute("src", "assets/loading-dots.gif");
+    this.messageBox.appendChild(this.loadingIcon);
+  }
+
+  removeLoadingIcon() {
+    if (this.loadingIcon !== null) this.loadingIcon.remove();
+  }
+
+  showError(error) {
+    this.avatar.setAttribute("src", "assets/chat-error.svg");
+    this.messageBox.classList.remove("response");
+    this.messageBox.classList.add("error");
+    this.messageBox.innerHTML = error.message;
+  }
+}
+
+MessageRow.map = new Map(); // {requestId, messageType} -> MessageRow instance

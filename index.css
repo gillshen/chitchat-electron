@@ -390,7 +390,8 @@ body {
 }
 
 code {
-  font-family: "Consolas", "Courier New", Courier, monospace;
+  font-family: "Consolas", "Microsoft YaHei UI", "Courier New", Courier,
+    monospace;
   color: darkcyan;
   border-radius: var(--code-border-radius);
   background-color: var(--code-background);

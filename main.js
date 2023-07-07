@@ -148,7 +148,7 @@ ipcMain.on(
     event,
     {
       chatId = null,
-      chatTitle = "New Chat",
+      chatTitle = "",
       systemMessage = "",
       model,
       prompt,
@@ -156,14 +156,13 @@ ipcMain.on(
       parameters,
     }
   ) => {
+    const originalChatId = chatId;
     const params = { model, messages: [...context], ...parameters };
     params.messages.push({ role: "user", content: prompt });
 
     try {
-      const chatCompletion = await openai.createChatCompletion({ ...params });
-      event.sender.send("response-ready");
+      const chatCompletion = await openai.createChatCompletion(params);
 
-      // save to database
       const timestamp = chatCompletion.data.created;
       const completionContent = chatCompletion.data.choices[0].message.content;
       const finishReason = chatCompletion.data.choices[0].finish_reason;
@@ -199,6 +198,8 @@ ipcMain.on(
       );
 
       // render response
+      event.sender.send("response-ready");
+
       event.sender.send("response-success", {
         chatId,
         requestId,
@@ -211,6 +212,38 @@ ipcMain.on(
         promptTokens,
         completionTokens,
       });
+
+      // if a title-less new chat, generate a title for it
+      if (originalChatId === null && !chatTitle) {
+        event.sender.send("generating-chat-title", { chatId });
+
+        const titlePrompt =
+          "Consider the following dialog.\n\n" +
+          "<blockquote>\n" +
+          `Q: ${prompt}\n\n` +
+          `A: ${completionContent}\n\n` +
+          "</blockquote>\n\n" +
+          "Please assign a title to this dialog. " +
+          "The title should be in the language of the question " +
+          "and fit in the width of roughly 30 latin characters. " +
+          "Reply with the title only.";
+
+        const params = {
+          model,
+          messages: [{ role: "user", content: titlePrompt }],
+        };
+        const titleResponse = await openai.createChatCompletion(params);
+        const newTitle = titleResponse.data.choices[0].message.content;
+
+        // update database
+        db.run("UPDATE Chat set title = ? WHERE id = ?", [newTitle, chatId]);
+
+        // report to the renderer
+        event.sender.send("chat-title-generated", {
+          chatId,
+          chatTitle: newTitle,
+        });
+      }
     } catch (error) {
       event.sender.send("response-ready");
       event.sender.send("response-error", error);
