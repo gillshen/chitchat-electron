@@ -15,20 +15,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   sendButton.addEventListener("click", sendPrompt);
 
-  // user input keydown event listener (Enter key)
+  // send the prompt upon the user pressing enter
   textarea.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      if (event.ctrlKey || event.shiftKey) {
-        // insert a newline on ctrl+return or shift+return
-        // always effective
-        document.execCommand("insertLineBreak");
-      } else {
-        // send the prompt on a bare return
-        // effective only when no API request is in progress
-        sendPrompt();
-      }
-      event.preventDefault();
-    }
+    // insert a newline on ctrl+return or shift+return
+    if (event.key !== "Enter" || event.ctrlKey || event.shiftKey) return;
+
+    sendPrompt(); // does nothing when an API request is in progress
+    event.preventDefault();
   });
 
   // collapsible sidebar toggle
@@ -413,9 +406,19 @@ class ChatListItem {
     this.deleteIcon.src = "assets/delete-chat.png";
     this.deleteButton.appendChild(this.deleteIcon);
 
+    this.button.addEventListener("mouseenter", () => {
+      if (this.textDiv.contentEditable !== "true") this._showButtons();
+    });
+    this.button.addEventListener("mouseleave", () => this._hideButtons());
+
     this.button.addEventListener("click", () => {
       // selection disabled while an API request is in progress
       if (!requestInProgress) this.select();
+    });
+
+    // prevent selection if text is being edited
+    this.textDiv.addEventListener("click", (event) => {
+      if (this.textDiv.contentEditable === "true") event.stopPropagation();
     });
 
     this.editButton.addEventListener("mouseenter", () => {
@@ -439,6 +442,16 @@ class ChatListItem {
       this.deleteChat();
       event.stopPropagation();
     });
+  }
+
+  _showButtons() {
+    this.editButton.classList.add("visible");
+    this.deleteButton.classList.add("visible");
+  }
+
+  _hideButtons() {
+    this.editButton.classList.remove("visible");
+    this.deleteButton.classList.remove("visible");
   }
 
   parent() {
@@ -469,8 +482,40 @@ class ChatListItem {
   }
 
   editTitle() {
-    // TODO
-    console.log(">>> editing", this.chatId, this.textDiv.innerText);
+    this._hideButtons();
+    this.textDiv.contentEditable = "true";
+    this.textDiv.focus();
+
+    const onKeyDown = (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendTitleEditRequest();
+      }
+    };
+
+    const onFocusOut = () => {
+      sendTitleEditRequest();
+    };
+
+    const onClick = (event) => {
+      if (event.target !== this.textDiv) sendTitleEditRequest();
+    };
+
+    const sendTitleEditRequest = () => {
+      ipcRenderer.send("chat-title-edit-request", {
+        chatId: this.chatId,
+        chatTitle: this.textDiv.innerText,
+      });
+      // clean up and restore
+      this.textDiv.contentEditable = "false";
+      this.textDiv.removeEventListener("keydown", onKeyDown);
+      this.textDiv.removeEventListener("focusout", onFocusOut);
+      document.removeEventListener("click", onClick);
+    };
+
+    this.textDiv.addEventListener("keydown", onKeyDown);
+    this.textDiv.addEventListener("focusout", onFocusOut);
+    document.addEventListener("click", onClick);
   }
 
   deleteChat() {

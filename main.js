@@ -142,6 +142,10 @@ ipcMain.on("saved-chats-request", async (event) => {
   });
 });
 
+ipcMain.on("chat-title-edit-request", async (_, { chatId, chatTitle }) => {
+  db.run("UPDATE Chat SET title = ? WHERE id = ?", [chatTitle, chatId]);
+});
+
 ipcMain.on(
   "api-request",
   async (

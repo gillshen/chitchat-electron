@@ -154,7 +154,7 @@ body {
 }
 
 #chat-list.disabled .chat-button {
-  cursor: not-allowed;
+  cursor: auto;
 }
 
 #chat-list.disabled .chat-button:not(.selected),
@@ -179,7 +179,7 @@ body {
 
 #new-chat-button.disabled,
 #new-chat-button.disabled:hover {
-  cursor: not-allowed;
+  cursor: auto;
   background-color: #ddd;
 }
 
@@ -206,6 +206,14 @@ body {
   text-overflow: ellipsis;
 }
 
+.chat-button-text[contenteditable="true"] {
+  border: none;
+  border-radius: var(--button-border-radius);
+  color: #222;
+  background-color: white;
+  cursor: text;
+}
+
 .chat-edit-button,
 .chat-delete-button {
   flex: 0 0 auto;
@@ -215,13 +223,15 @@ body {
   background-color: inherit;
 }
 
-.chat-button:hover .chat-edit-button,
-.chat-button:hover .chat-delete-button {
+.chat-edit-button.visible,
+.chat-delete-button.visible {
   display: flex;
 }
 
 #chat-list.disabled .chat-edit-button,
-#chat-list.disabled .chat-delete-button {
+#chat-list.disabled .chat-edit-button.visible,
+#chat-list.disabled .chat-delete-button,
+#chat-list.disabled .chat-delete-button.visible {
   display: none;
 }
 
@@ -348,7 +358,7 @@ body {
 
 #send-button.disabled,
 #send-button.disabled:hover {
-  cursor: not-allowed;
+  cursor: auto;
 }
 
 #send-icon {
