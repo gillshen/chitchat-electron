@@ -9,8 +9,11 @@ window.addEventListener("DOMContentLoaded", () => {
   const newChatButton = document.getElementById("new-chat-button");
   newChatButton.addEventListener("click", startNewChat);
 
-  // send button
+  // input area
   const textarea = document.getElementById("input-textarea");
+  textarea.contentEditable = "true";
+
+  // send button
   const sendButton = document.getElementById("send-button");
 
   sendButton.addEventListener("click", sendPrompt);
@@ -297,8 +300,22 @@ ipcRenderer.on("chat-created", (_, { chatId, chatTitle, systemMessage }) => {
 
 ipcRenderer.on("chat-title-generated", (_, { chatId, chatTitle }) => {
   const chatListItem = ChatListItem.map.get(chatId);
-  // TODO unlock this item
   chatListItem.setText(chatTitle);
+});
+
+ipcRenderer.on("chat-title-edit-failure", (_, { chatId, oldTitle }) => {
+  const chatListItem = ChatListItem.map.get(chatId);
+  chatListItem.setText(oldTitle);
+});
+
+ipcRenderer.on("chat-deleted", (_, deletedChatId) => {
+  if (savedChats.get(deletedChatId) === activeChat) {
+    savedChats.delete(deletedChatId);
+    activeChat = null;
+    document.getElementById("chat-box").innerHTML = "";
+  }
+  const chatListItem = ChatListItem.map.get(deletedChatId);
+  chatListItem.remove();
 });
 
 ipcRenderer.on(
@@ -458,6 +475,10 @@ class ChatListItem {
     return document.getElementById("chat-list");
   }
 
+  remove() {
+    this.parent().removeChild(this.button);
+  }
+
   select() {
     const thisChat = savedChats.get(this.chatId);
     if (activeChat === thisChat) return;
@@ -482,6 +503,8 @@ class ChatListItem {
   }
 
   editTitle() {
+    const oldTitle = this.textDiv.innerText;
+
     this._hideButtons();
     this.textDiv.contentEditable = "true";
     this.textDiv.focus();
@@ -504,7 +527,8 @@ class ChatListItem {
     const sendTitleEditRequest = () => {
       ipcRenderer.send("chat-title-edit-request", {
         chatId: this.chatId,
-        chatTitle: this.textDiv.innerText,
+        oldTitle,
+        newTitle: this.textDiv.innerText,
       });
       // clean up and restore
       this.textDiv.contentEditable = "false";
@@ -519,8 +543,10 @@ class ChatListItem {
   }
 
   deleteChat() {
-    // TODO
-    console.log(">>> deleting", this.chatId, this.textDiv.innerText);
+    ipcRenderer.send("open-chat-delete-dialog", {
+      chatId: this.chatId,
+      chatTitle: this.textDiv.innerText,
+    });
   }
 }
 

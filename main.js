@@ -1,4 +1,12 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  ipcMain,
+  shell,
+  dialog,
+} = require("electron");
+
 const fs = require("fs");
 const path = require("path");
 
@@ -80,8 +88,10 @@ for (const model of ["gpt-3.5-turbo", "gpt-4"]) {
   ENCODINGS.set(model, encoding_for_model(model));
 }
 
+let mainWindow;
+
 const createWindow = () => {
-  const window = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1150,
     height: 750,
     webPreferences: {
@@ -99,12 +109,12 @@ const createWindow = () => {
   // this also removes the context menu, which shall be rebuilt below
   Menu.setApplicationMenu(null);
 
-  window.webContents.on("will-navigate", (event, url) => {
+  mainWindow.webContents.on("will-navigate", (event, url) => {
     event.preventDefault();
     shell.openExternal(url);
   });
 
-  window.webContents.on("context-menu", (_, params) => {
+  mainWindow.webContents.on("context-menu", (_, params) => {
     // rebuild the context menu
     const contextMenu = Menu.buildFromTemplate([
       { role: "cut", enabled: params.editFlags.canCut },
@@ -117,7 +127,7 @@ const createWindow = () => {
     contextMenu.popup();
   });
 
-  window.loadFile("index.html");
+  mainWindow.loadFile("index.html");
 };
 
 app.whenReady().then(() => {
@@ -142,8 +152,47 @@ ipcMain.on("saved-chats-request", async (event) => {
   });
 });
 
-ipcMain.on("chat-title-edit-request", async (_, { chatId, chatTitle }) => {
-  db.run("UPDATE Chat SET title = ? WHERE id = ?", [chatTitle, chatId]);
+ipcMain.on(
+  "chat-title-edit-request",
+  async (event, { chatId, oldTitle, newTitle }) => {
+    db.run(
+      "UPDATE Chat SET title = ? WHERE id = ?",
+      [newTitle, chatId],
+      function (error) {
+        if (error) {
+          // tell the renderer to restore the old title
+          event.sender.send("chat-title-edit-failure", { chatId, oldTitle });
+          throw error;
+        }
+      }
+    );
+  }
+);
+
+ipcMain.on("open-chat-delete-dialog", async (event, { chatId, chatTitle }) => {
+  const dialogOptions = {
+    type: "question",
+    buttons: ["Confirm", "Cancel"],
+    defaultId: 0,
+    title: "Confirm deletion",
+    message: `Are you sure you want to delete ${chatTitle}?`,
+    detail:
+      "The history of this conversation will be deleted from the database. This action cannot be undone.",
+  };
+
+  const { response } = await dialog.showMessageBox(mainWindow, dialogOptions);
+  if (response !== 0) {
+    return;
+  }
+
+  // if user confirms deletion
+  db.run("DELETE FROM Chat WHERE id = ?", [chatId], function (error) {
+    if (error) {
+      throw error;
+    } else {
+      event.sender.send("chat-deleted", chatId);
+    }
+  });
 });
 
 ipcMain.on(
