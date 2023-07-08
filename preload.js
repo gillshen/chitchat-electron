@@ -38,11 +38,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   sidebarToggle.addEventListener("click", () => {
     sidebar.classList.toggle("collapsed");
-    if (toggleIcon.classList.toggle("collapsed")) {
-      toggleIcon.setAttribute("src", "assets/chevron-right.svg");
-    } else {
-      toggleIcon.setAttribute("src", "assets/chevron-left.svg");
-    }
+    toggleIcon.src = toggleIcon.classList.toggle("collapsed")
+      ? "assets/chevron-right.svg"
+      : "assets/chevron-left.svg";
   });
 
   // resizing
@@ -122,7 +120,8 @@ class Chat {
 
   historyArray() {
     // generate an array of messages for display in the chat box
-    return this._history.map(({ prompt, completionContent }) => ({
+    return this._history.map(({ requestId, prompt, completionContent }) => ({
+      requestId,
       prompt,
       completionContent,
     }));
@@ -192,12 +191,12 @@ const setRequestInProgress = (flag) => {
   const chatList = document.getElementById("chat-list");
 
   if (flag) {
-    sendIcon.setAttribute("src", "assets/send-disabled.svg");
+    sendIcon.src = "assets/send-disabled.svg";
     sendButton.classList.add("disabled");
     newChatButton.classList.add("disabled");
     chatList.classList.add("disabled");
   } else {
-    sendIcon.setAttribute("src", "assets/send.svg");
+    sendIcon.src = "assets/send.svg";
     sendButton.classList.remove("disabled");
     newChatButton.classList.remove("disabled");
     chatList.classList.remove("disabled");
@@ -378,16 +377,16 @@ const mdToHtml = (md) => {
 
 class ChatListItem {
   constructor(chatId, chatTitle) {
-    this.id = chatId;
+    this.chatId = chatId;
     ChatListItem.map.set(chatId, this);
 
     this.button = document.createElement("button");
-    this.button.setAttribute("id", `chat-${chatId}`);
-    this.button.setAttribute("class", "chat-button");
+    this.button.id = `chat-${chatId}`;
+    this.button.classList.add("chat-button");
     this.parent().appendChild(this.button);
 
     this.icon = document.createElement("img");
-    this.icon.setAttribute("src", "assets/speech-bubble.png");
+    this.icon.src = "assets/speech-bubble.png";
     this.icon.classList.add("chat-button-icon");
     this.button.appendChild(this.icon);
 
@@ -402,7 +401,7 @@ class ChatListItem {
 
     this.editIcon = document.createElement("img");
     this.editIcon.classList.add("chat-edit-icon");
-    this.editIcon.setAttribute("src", "assets/edit-chat.png");
+    this.editIcon.src = "assets/edit-chat.png";
     this.editButton.appendChild(this.editIcon);
 
     this.deleteButton = document.createElement("button");
@@ -411,7 +410,7 @@ class ChatListItem {
 
     this.deleteIcon = document.createElement("img");
     this.deleteIcon.classList.add("chat-delete-icon");
-    this.deleteIcon.setAttribute("src", "assets/delete-chat.png");
+    this.deleteIcon.src = "assets/delete-chat.png";
     this.deleteButton.appendChild(this.deleteIcon);
 
     this.button.addEventListener("click", () => {
@@ -420,10 +419,10 @@ class ChatListItem {
     });
 
     this.editButton.addEventListener("mouseenter", () => {
-      this.editIcon.setAttribute("src", "assets/edit-chat-hover.png");
+      this.editIcon.src = "assets/edit-chat-hover.png";
     });
     this.editButton.addEventListener("mouseleave", () => {
-      this.editIcon.setAttribute("src", "assets/edit-chat.png");
+      this.editIcon.src = "assets/edit-chat.png";
     });
     this.editButton.addEventListener("click", (event) => {
       this.editTitle();
@@ -431,10 +430,10 @@ class ChatListItem {
     });
 
     this.deleteButton.addEventListener("mouseenter", () => {
-      this.deleteIcon.setAttribute("src", "assets/delete-chat-hover.png");
+      this.deleteIcon.src = "assets/delete-chat-hover.png";
     });
     this.deleteButton.addEventListener("mouseleave", () => {
-      this.deleteIcon.setAttribute("src", "assets/delete-chat.png");
+      this.deleteIcon.src = "assets/delete-chat.png";
     });
     this.deleteButton.addEventListener("click", (event) => {
       this.deleteChat();
@@ -447,17 +446,17 @@ class ChatListItem {
   }
 
   select() {
+    const thisChat = savedChats.get(this.chatId);
+    if (activeChat === thisChat) return;
+
+    activeChat = thisChat;
+    loadHistory(thisChat.historyArray());
+    showTokenCount();
+
     for (const button of this.parent().children) {
       button.classList.remove("selected");
     }
     this.button.classList.add("selected");
-
-    const selectedChat = savedChats.get(this.id);
-    if (activeChat !== selectedChat) {
-      activeChat = selectedChat;
-      loadHistory(selectedChat.historyArray());
-      showTokenCount();
-    }
   }
 
   moveToTop() {
@@ -471,12 +470,12 @@ class ChatListItem {
 
   editTitle() {
     // TODO
-    console.log(">>> editing", this.id, this.textDiv.innerText);
+    console.log(">>> editing", this.chatId, this.textDiv.innerText);
   }
 
   deleteChat() {
     // TODO
-    console.log(">>> deleting", this.id, this.textDiv.innerText);
+    console.log(">>> deleting", this.chatId, this.textDiv.innerText);
   }
 }
 
@@ -484,7 +483,6 @@ ChatListItem.map = new Map(); // chatId -> ChatListItem instance
 
 class MessageRow {
   constructor(messageType, text = "") {
-    this.id = null;
     this.type = messageType;
     this.text = "";
 
@@ -508,7 +506,7 @@ class MessageRow {
   }
 
   setId(requestId) {
-    this.row.setAttribute("id", `${this.type}-row-${requestId}`);
+    this.row.id = `${this.type}-row-${requestId}`;
   }
 
   setMarkdown(text) {
@@ -524,21 +522,21 @@ class MessageRow {
 class PromptRow extends MessageRow {
   constructor(text = "") {
     super("prompt", text);
-    this.avatar.setAttribute("src", "assets/chat-prompt.png");
+    this.avatar.src = "assets/chat-prompt.png";
   }
 }
 
 class ResponseRow extends MessageRow {
   constructor(text = "") {
     super("response", text);
-    this.avatar.setAttribute("src", "assets/chat-response.svg");
+    this.avatar.src = "assets/chat-response.svg";
     this.loadingIcon = null;
   }
 
   showLoadingIcon() {
     this.loadingIcon = document.createElement("img");
-    this.loadingIcon.setAttribute("id", "loading-icon");
-    this.loadingIcon.setAttribute("src", "assets/loading-dots.gif");
+    this.loadingIcon.id = "loading-icon";
+    this.loadingIcon.src = "assets/loading-dots.gif";
     this.messageBox.appendChild(this.loadingIcon);
   }
 
@@ -547,7 +545,7 @@ class ResponseRow extends MessageRow {
   }
 
   showError(error) {
-    this.avatar.setAttribute("src", "assets/chat-error.svg");
+    this.avatar.src = "assets/chat-error.svg";
     this.messageBox.classList.remove("response");
     this.messageBox.classList.add("error");
     this.messageBox.innerHTML = error.message;

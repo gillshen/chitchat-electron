@@ -76,6 +76,7 @@ body {
   width: 0;
   max-width: 0;
   min-width: 0;
+  height: 0;
 }
 
 #sidebar-toggle {
@@ -117,6 +118,7 @@ body {
   flex-direction: column;
   gap: 2px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .chat-button {
@@ -168,6 +170,7 @@ body {
   padding: var(--text-padding);
   padding-left: 0.8rem;
   width: fit-content;
+  min-width: fit-content;
 }
 
 #new-chat-button:hover {
@@ -429,6 +432,6 @@ a {
 }
 
 .error {
-  color: #f2f2f2;
+  color: white;
   background-color: indianred;
 }
