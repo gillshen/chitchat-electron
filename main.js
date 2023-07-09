@@ -5,6 +5,7 @@ const {
   ipcMain,
   shell,
   dialog,
+  globalShortcut,
 } = require("electron");
 
 const fs = require("fs");
@@ -13,6 +14,7 @@ const path = require("path");
 const { Configuration, OpenAIApi } = require("openai");
 const { encoding_for_model } = require("tiktoken");
 
+const Fuse = require("fuse.js");
 const sqlite3 = require("sqlite3");
 
 // Set up the chat history database
@@ -89,8 +91,9 @@ for (const model of ["gpt-3.5-turbo", "gpt-4"]) {
 }
 
 let mainWindow;
+let searchWindow;
 
-const createWindow = () => {
+const createMainWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1150,
     height: 750,
@@ -127,14 +130,44 @@ const createWindow = () => {
     contextMenu.popup();
   });
 
+  // ctrl+f to open the search window
+  globalShortcut.register("CommandOrControl+F", () => {
+    if (searchWindow === undefined) {
+      createSearchWindow();
+    } else {
+      searchWindow.show();
+    }
+  });
+
+  // close the search window if the main window is closed
+  mainWindow.on("closed", () => {
+    searchWindow?.close();
+  });
+
   mainWindow.loadFile("index.html");
 };
 
+const createSearchWindow = () => {
+  searchWindow = new BrowserWindow({
+    width: 600,
+    height: 700,
+    webPreferences: {
+      preload: path.join(__dirname, "search", "preload.js"),
+      sandbox: false,
+    },
+    nodeIntegration: true,
+  });
+  searchWindow.on("closed", () => {
+    searchWindow = undefined;
+  });
+  searchWindow.loadFile("search/index.html");
+};
+
 app.whenReady().then(() => {
-  createWindow();
+  createMainWindow();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
 });
 
@@ -193,6 +226,74 @@ ipcMain.on("open-chat-delete-dialog", async (event, { chatId, chatTitle }) => {
       event.sender.send("chat-deleted", chatId);
     }
   });
+});
+
+ipcMain.on("search-initiated", async (_, query) => {
+  const messagePool = await execSelect(`
+    SELECT
+      chat_id AS chatId,
+      chat_title AS chatTitle,
+      request_id AS requestId,
+      completion_created AS timestamp,
+      prompt,
+      completion AS completionContent
+    FROM MessageListView
+  `);
+
+  let minMatchLength;
+  if (query.length <= 4) {
+    minMatchLength = query.length;
+  } else if (query.length === 5) {
+    minMatchLength = query.length - 1;
+  } else if (query.length <= 7) {
+    minMatchLength = query.length - 2;
+  } else if (query.length <= 9) {
+    minMatchLength = query.length - 3;
+  } else {
+    minMatchLength = query.length - 4;
+  }
+
+  const fuseOptions = {
+    isCaseSensitive: false,
+    includeScore: false,
+    shouldSort: true,
+    includeMatches: true,
+    findAllMatches: true,
+    minMatchCharLength: Math.max(minMatchLength, 2),
+    threshold: 0.05,
+    ignoreLocation: true,
+    // location: 0,
+    // distance: 100,
+    // useExtendedSearch: false,
+    // ignoreFieldNorm: false,
+    // fieldNormWeight: 1,
+    keys: ["prompt", "completionContent"],
+  };
+
+  const fuse = new Fuse(messagePool, fuseOptions);
+  const fuseResults = fuse.search(query);
+
+  const results = fuseResults.map(({ item, matches }) => ({
+    chatId: item.chatId,
+    chatTitle: item.chatTitle,
+    requestId: item.requestId,
+    timestamp: item.timestamp,
+    matches,
+  }));
+
+  // in case the search window was destroyed between
+  // sending the query and receiving the results
+  if (searchWindow === undefined) {
+    createSearchWindow();
+  } else {
+    searchWindow.show();
+  }
+  searchWindow.webContents.send("search-results-ready", results);
+});
+
+ipcMain.on("go-to", (_, { chatId, requestId, messageType }) => {
+  mainWindow.webContents.send("go-to", { chatId, requestId, messageType });
+  mainWindow.show();
 });
 
 ipcMain.on(
@@ -346,6 +447,18 @@ const execInsert = (query, params) => {
         reject(error);
       } else {
         resolve(this.lastID);
+      }
+    });
+  });
+};
+
+const execSelect = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(query, params, (error, rows) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(rows);
       }
     });
   });

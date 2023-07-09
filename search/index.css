@@ -1,0 +1,29 @@
+body {
+  font-family: "Open Sans", "Microsoft YaHei UI", Arial, Helvetica, sans-serif;
+  font-size: 11pt;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  min-height: 100vh;
+}
+
+#result-list {
+  overflow: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: #ddd;
+}
+
+.result-list-item {
+  word-wrap: normal;
+}
+
+.result-list-item.prompt {
+  background-color: #bfdf98;
+}
+.result-list-item.response {
+  color: darkslategray;
+  background-color: #f3f3f3;
+}

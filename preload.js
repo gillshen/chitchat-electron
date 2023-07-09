@@ -116,11 +116,14 @@ class Chat {
 
   historyArray() {
     // generate an array of messages for display in the chat box
-    return this._history.map(({ requestId, prompt, completionContent }) => ({
-      requestId,
-      prompt,
-      completionContent,
-    }));
+    return this._history.map(
+      ({ requestId, timestamp, prompt, completionContent }) => ({
+        requestId,
+        timestamp,
+        prompt,
+        completionContent,
+      })
+    );
   }
 
   contextArray(trim = true) {
@@ -169,9 +172,9 @@ const loadHistory = (historyArray) => {
 
   for (const { requestId, prompt, completionContent } of historyArray) {
     const promptRow = new PromptRow(prompt);
-    promptRow.setId(requestId);
+    promptRow.setElementId(requestId);
     const responseRow = new ResponseRow(completionContent);
-    responseRow.setId(requestId);
+    responseRow.setElementId(requestId);
   }
   chatBox.scrollTop = chatBox.scrollHeight;
 };
@@ -241,9 +244,7 @@ const sendPrompt = async () => {
 
   // scroll to the very bottom
   const chatBox = document.getElementById("chat-box");
-  setTimeout(() => {
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }, 100);
+  setTimeout(() => (chatBox.scrollTop = chatBox.scrollHeight), 100);
 };
 
 ipcRenderer.on("saved-chats-retrieval-failure", (_, error) => {
@@ -280,6 +281,15 @@ ipcRenderer.on("saved-chats-ready", (_, rows) => {
   for (const chat of sortedChats) {
     new ChatListItem(chat.id, chat.title);
   }
+});
+
+ipcRenderer.on("go-to", (_, { chatId, requestId, messageType }) => {
+  const chatListItem = ChatListItem.map.get(chatId);
+  chatListItem.select();
+
+  const messageRowId = MessageRow.elementId(requestId, messageType);
+  const messageRow = document.getElementById(messageRowId);
+  messageRow.scrollIntoView();
 });
 
 ipcRenderer.on("response-ready", () => {
@@ -387,8 +397,8 @@ const mdToHtml = (md) => {
 
 class ChatListItem {
   constructor(chatId, chatTitle) {
-    this.chatId = chatId;
     ChatListItem.map.set(chatId, this);
+    this.chatId = chatId;
 
     this.button = document.createElement("button");
     this.button.id = `chat-${chatId}`;
@@ -480,17 +490,20 @@ class ChatListItem {
   }
 
   select() {
-    const thisChat = savedChats.get(this.chatId);
-    if (activeChat === thisChat) return;
-
-    activeChat = thisChat;
-    loadHistory(thisChat.historyArray());
-    showTokenCount();
-
+    // update sidebar
     for (const button of this.parent().children) {
       button.classList.remove("selected");
     }
     this.button.classList.add("selected");
+
+    const selectedChat = savedChats.get(this.chatId);
+
+    // if a different chat is selected than the currently active one
+    if (activeChat !== selectedChat) {
+      activeChat = selectedChat;
+      loadHistory(selectedChat.historyArray());
+      showTokenCount();
+    }
   }
 
   moveToTop() {
@@ -576,8 +589,9 @@ class MessageRow {
     return document.getElementById("chat-box");
   }
 
-  setId(requestId) {
-    this.row.id = `${this.type}-row-${requestId}`;
+  setElementId(requestId) {
+    // this.row.id = `${this.type}-row-${requestId}`;
+    this.row.id = MessageRow.elementId(requestId, this.type);
   }
 
   setMarkdown(text) {
@@ -623,4 +637,6 @@ class ResponseRow extends MessageRow {
   }
 }
 
-MessageRow.map = new Map(); // {requestId, messageType} -> MessageRow instance
+MessageRow.elementId = (requestId, messageType) => {
+  return `${messageType}-row-${requestId}`;
+};
