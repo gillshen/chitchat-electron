@@ -13,7 +13,33 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
+
+  searchBox.addEventListener("paste", pasteAsPlainText);
 });
+
+// TODO duplicate code from ../preload.js
+const pasteAsPlainText = (event) => {
+  event.preventDefault();
+
+  const clipboardData = event.clipboardData || window.clipboardData;
+  const plainText = clipboardData.getData("text/plain");
+
+  const selection = window.getSelection();
+  // check if a cursor or an active selection exists
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+
+  const textNode = document.createTextNode(plainText);
+  range.insertNode(textNode);
+
+  // move the cursor to the end of the inserted text
+  range.setStartAfter(textNode);
+  range.setEndAfter(textNode);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
 
 ipcRenderer.on("search-results-ready", (_, results) => {
   const resultList = document.getElementById("result-list");
