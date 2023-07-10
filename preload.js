@@ -27,6 +27,13 @@ window.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
   });
 
+  // open search window upon the user pressing ctrl+f or cmd+f
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "f" && (event.ctrlKey || event.metaKey)) {
+      ipcRenderer.send("search-window-open-request");
+    }
+  });
+
   // collapsible sidebar toggle
   const sidebar = document.getElementById("sidebar");
   const sidebarToggle = document.getElementById("sidebar-toggle");
@@ -223,15 +230,6 @@ const sendPrompt = async () => {
   const textarea = document.getElementById("input-textarea");
   const prompt = textarea.innerText;
 
-  // send the prompt to the main process
-  ipcRenderer.send("api-request", {
-    chatId: activeChat?.id ?? null,
-    model: "gpt-3.5-turbo", // TODO get from user input
-    prompt,
-    context: activeChat?.contextArray() ?? [],
-    parameters: {}, // TODO get from user input
-  });
-
   // create the prompt container
   activePromptRow = new PromptRow(prompt);
 
@@ -241,6 +239,15 @@ const sendPrompt = async () => {
   // show the response box with a loading gif
   activeResponseRow = new ResponseRow();
   activeResponseRow.showLoadingIcon();
+
+  // send the prompt to the main process
+  ipcRenderer.send("api-request", {
+    chatId: activeChat?.id ?? null,
+    model: "gpt-3.5-turbo", // TODO get from user input
+    prompt,
+    context: activeChat?.contextArray() ?? [],
+    parameters: {}, // TODO get from user input
+  });
 
   // scroll to the very bottom
   const chatBox = document.getElementById("chat-box");
@@ -350,8 +357,8 @@ ipcRenderer.on(
     activeResponseRow.scrollIntoView();
 
     // update prompt and response elements
-    activePromptRow.setId(requestId);
-    activeResponseRow.setId(requestId);
+    activePromptRow.setElementId(requestId);
+    activeResponseRow.setElementId(requestId);
 
     // store request data
     activeChat.appendRequest({

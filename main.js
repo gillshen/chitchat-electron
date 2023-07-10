@@ -2,10 +2,10 @@ const {
   app,
   BrowserWindow,
   Menu,
+  MenuItem,
   ipcMain,
   shell,
   dialog,
-  globalShortcut,
 } = require("electron");
 
 const fs = require("fs");
@@ -119,24 +119,46 @@ const createMainWindow = () => {
 
   mainWindow.webContents.on("context-menu", (_, params) => {
     // rebuild the context menu
+    let ctrlOrCmd = process.platform === "darwin" ? "Cmd" : "Ctrl";
     const contextMenu = Menu.buildFromTemplate([
-      { role: "cut", enabled: params.editFlags.canCut },
-      { role: "copy", enabled: params.editFlags.canCopy },
-      { role: "paste", enabled: params.editFlags.canPaste },
-      { role: "delete", enabled: params.editFlags.canDelete },
+      {
+        role: "cut",
+        enabled: params.editFlags.canCut,
+        accelerator: `${ctrlOrCmd}+X`,
+      },
+      {
+        role: "copy",
+        enabled: params.editFlags.canCopy,
+        accelerator: `${ctrlOrCmd}+C`,
+      },
+      {
+        role: "paste",
+        enabled: params.editFlags.canPaste,
+        accelerator: `${ctrlOrCmd}+V`,
+      },
+      {
+        role: "delete",
+        enabled: params.editFlags.canDelete,
+        accelerator: "Delete",
+      },
       { type: "separator" },
-      { role: "selectall", enabled: params.editFlags.canSelectAll },
+      {
+        role: "selectall",
+        enabled: params.editFlags.canSelectAll,
+        accelerator: `${ctrlOrCmd}+A`,
+      },
+      { type: "separator" },
     ]);
-    contextMenu.popup();
-  });
 
-  // ctrl+f to open the search window
-  globalShortcut.register("CommandOrControl+F", () => {
-    if (searchWindow === undefined) {
-      createSearchWindow();
-    } else {
-      searchWindow.show();
-    }
+    contextMenu.append(
+      new MenuItem({
+        label: "Find",
+        accelerator: `${ctrlOrCmd}+F`,
+        click: showSearchWindow,
+      })
+    );
+
+    contextMenu.popup();
   });
 
   // close the search window if the main window is closed
@@ -163,6 +185,14 @@ const createSearchWindow = () => {
   searchWindow.loadFile("search/index.html");
 };
 
+const showSearchWindow = () => {
+  if (searchWindow === undefined) {
+    createSearchWindow();
+  } else {
+    searchWindow.show();
+  }
+};
+
 app.whenReady().then(() => {
   createMainWindow();
 
@@ -183,6 +213,10 @@ ipcMain.on("saved-chats-request", async (event) => {
       event.sender.send("saved-chats-ready", rows);
     }
   });
+});
+
+ipcMain.on("search-window-open-request", () => {
+  showSearchWindow();
 });
 
 ipcMain.on(
