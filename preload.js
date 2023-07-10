@@ -27,6 +27,9 @@ window.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
   });
 
+  // remove formatting before pasting into the prompt box
+  textarea.addEventListener("paste", pasteAsPlainText);
+
   // open search window upon the user pressing ctrl+f or cmd+f
   document.addEventListener("keydown", (event) => {
     if (event.key === "f" && (event.ctrlKey || event.metaKey)) {
@@ -79,6 +82,29 @@ window.addEventListener("DOMContentLoaded", () => {
   // status bar
   showTokenCount();
 });
+
+const pasteAsPlainText = (event) => {
+  event.preventDefault();
+
+  const clipboardData = event.clipboardData || window.clipboardData;
+  const plainText = clipboardData.getData("text/plain");
+
+  const selection = window.getSelection();
+  // check if a cursor or an active selection exists
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+
+  const textNode = document.createTextNode(plainText);
+  range.insertNode(textNode);
+
+  // move the cursor to the end of the inserted text
+  range.setStartAfter(textNode);
+  range.setEndAfter(textNode);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
 
 const savedChats = new Map(); // id -> Chat
 
@@ -450,10 +476,16 @@ class ChatListItem {
       if (!requestInProgress) this.select();
     });
 
-    // prevent selection if text is being edited
+    // prevent chat selection if text is being edited
     this.textDiv.addEventListener("click", (event) => {
       if (this.textDiv.contentEditable === "true") event.stopPropagation();
     });
+    // prevent releasing the space key from tiggering focusout
+    this.textDiv.addEventListener("keyup", (event) => {
+      if (event.code === "Space") event.preventDefault();
+    });
+    // remove formatting before pasting into the text div
+    this.textDiv.addEventListener("paste", pasteAsPlainText);
 
     this.editButton.addEventListener("mouseenter", () => {
       this.editIcon.src = "assets/edit-chat-hover.png";
