@@ -113,7 +113,6 @@ body {
 
 #sidebar > *:not(#sidebar-toggle) {
   margin-left: 1rem;
-  margin-right: 1.5rem;
   margin-top: 0.5rem;
 }
 
@@ -123,6 +122,7 @@ body {
   gap: 2px;
   overflow-y: auto;
   overflow-x: hidden;
+  padding-right: 1rem;
 }
 
 .chat-button {
@@ -168,18 +168,21 @@ body {
 }
 
 #new-chat-button {
-  border-radius: 10px;
+  border-radius: var(--button-border-radius);
   color: white;
-  background-color: #6da6e0;
+  background-color: #5f9ad5;
   padding: var(--text-padding);
   padding-left: 0.8rem;
   width: fit-content;
   min-width: fit-content;
+  /* left-align with chat buttons */
+  margin-left: 0.4rem;
 }
 
 #new-chat-button:hover,
 #new-chat-button:focus {
-  background-color: #5f98d1;
+  background-color: #4692de;
+  box-shadow: 0px 0px 2px lightgray;
 }
 
 #new-chat-button.disabled,
@@ -219,6 +222,7 @@ body {
   color: #222;
   background-color: white;
   cursor: text;
+  text-overflow: inherit;
 }
 
 .chat-button-text[contenteditable="true"]:focus {
@@ -305,6 +309,9 @@ body {
   flex-direction: column;
   gap: 1.5rem;
   padding-top: 2rem;
+
+  /* to work with auto scrolling of message rows */
+  padding-bottom: 30px;
 
   /* separation from the input box */
   margin-bottom: 1.5rem;
