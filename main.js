@@ -191,6 +191,7 @@ const showSearchWindow = () => {
   } else {
     searchWindow.show();
   }
+  searchWindow.webContents.send("reset-focus");
 };
 
 app.whenReady().then(() => {

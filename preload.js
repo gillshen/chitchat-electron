@@ -205,11 +205,12 @@ const loadHistory = (historyArray) => {
 
   for (const { requestId, prompt, completionContent } of historyArray) {
     const promptRow = new PromptRow(prompt);
-    promptRow.setElementId(requestId);
+    promptRow.setId(requestId);
     const responseRow = new ResponseRow(completionContent);
-    responseRow.setElementId(requestId);
+    responseRow.setId(requestId);
   }
-  chatBox.scrollTop = chatBox.scrollHeight;
+  // scroll to the very bottom (+50 just to be sure)
+  chatBox.scrollTop = chatBox.scrollHeight + 50;
 };
 
 const setRequestInProgress = (flag) => {
@@ -321,8 +322,8 @@ ipcRenderer.on("go-to", (_, { chatId, requestId, messageType }) => {
   chatListItem.select();
 
   const messageRowId = MessageRow.elementId(requestId, messageType);
-  const messageRow = document.getElementById(messageRowId);
-  messageRow.scrollIntoView();
+  const messageRow = MessageRow.map.get(messageRowId);
+  messageRow.makeVisible();
 });
 
 ipcRenderer.on("response-ready", () => {
@@ -343,12 +344,12 @@ ipcRenderer.on("chat-created", (_, { chatId, chatTitle, systemMessage }) => {
 
 ipcRenderer.on("chat-title-generated", (_, { chatId, chatTitle }) => {
   const chatListItem = ChatListItem.map.get(chatId);
-  chatListItem.setText(chatTitle);
+  chatListItem.setTitle(chatTitle);
 });
 
 ipcRenderer.on("chat-title-edit-failure", (_, { chatId, oldTitle }) => {
   const chatListItem = ChatListItem.map.get(chatId);
-  chatListItem.setText(oldTitle);
+  chatListItem.setTitle(oldTitle);
 });
 
 ipcRenderer.on("chat-deleted", (_, deletedChatId) => {
@@ -380,11 +381,11 @@ ipcRenderer.on(
   ) => {
     // show completion
     activeResponseRow.setMarkdown(completionContent);
-    activeResponseRow.scrollIntoView();
+    activeResponseRow.makeVisible();
 
     // update prompt and response elements
-    activePromptRow.setElementId(requestId);
-    activeResponseRow.setElementId(requestId);
+    activePromptRow.setId(requestId);
+    activeResponseRow.setId(requestId);
 
     // store request data
     activeChat.appendRequest({
@@ -550,7 +551,7 @@ class ChatListItem {
     chatList.insertBefore(this.button, chatList.firstChild);
   }
 
-  setText(text) {
+  setTitle(text) {
     this.textDiv.innerText = text;
   }
 
@@ -587,6 +588,11 @@ class ChatListItem {
       this.textDiv.removeEventListener("keydown", onKeyDown);
       this.textDiv.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("click", onClick);
+
+      // scroll to the leftmost position
+      this.textDiv.scrollLeft = 0;
+
+      this._showButtons();
     };
 
     this.textDiv.addEventListener("keydown", onKeyDown);
@@ -628,9 +634,9 @@ class MessageRow {
     return document.getElementById("chat-box");
   }
 
-  setElementId(requestId) {
-    // this.row.id = `${this.type}-row-${requestId}`;
-    this.row.id = MessageRow.elementId(requestId, this.type);
+  setId(requestId) {
+    const id = MessageRow.elementId(requestId, this.type);
+    MessageRow.map.set(id, this);
   }
 
   setMarkdown(text) {
@@ -638,8 +644,17 @@ class MessageRow {
     this.messageBox.innerHTML = mdToHtml(text);
   }
 
-  scrollIntoView(options) {
+  makeVisible(offset = -15, options) {
+    // scroll so the top of the row is 20px from the top edge
     this.row.scrollIntoView(options);
+    if (!offset) return;
+
+    this.parent().scrollBy({
+      behavior: "smooth",
+      ...options,
+      left: 0,
+      top: offset,
+    });
   }
 }
 
@@ -679,3 +694,5 @@ class ResponseRow extends MessageRow {
 MessageRow.elementId = (requestId, messageType) => {
   return `${messageType}-row-${requestId}`;
 };
+
+MessageRow.map = new Map(); // id "messageType-row-requestId" -> MessageRow

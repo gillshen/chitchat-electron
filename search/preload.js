@@ -41,6 +41,11 @@ const pasteAsPlainText = (event) => {
   selection.addRange(range);
 };
 
+ipcRenderer.on("reset-focus", (_) => {
+  const searchBox = document.getElementById("search-textarea");
+  searchBox.focus();
+});
+
 ipcRenderer.on("search-results-ready", (_, results) => {
   const resultList = document.getElementById("result-list");
   resultList.innerHTML = "";
