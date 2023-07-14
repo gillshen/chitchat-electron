@@ -18,6 +18,7 @@
     "marked": "^5.1.0",
     "openai": "^3.3.0",
     "sqlite3": "^5.1.6",
-    "tiktoken": "^1.0.10"
+    "tiktoken": "^1.0.10",
+    "tippy.js": "^6.3.7"
   }
 }

@@ -148,7 +148,6 @@ const createMainWindow = () => {
         enabled: params.editFlags.canSelectAll,
         accelerator: `${ctrlOrCmd}+A`,
       },
-      { type: "separator" },
     ]);
 
     contextMenu.append(
@@ -156,6 +155,16 @@ const createMainWindow = () => {
         label: "Find",
         accelerator: `${ctrlOrCmd}+F`,
         click: showSearchWindow,
+      })
+    );
+
+    contextMenu.append(new MenuItem({ type: "separator" }));
+
+    contextMenu.append(
+      new MenuItem({
+        label: "Reset Context",
+        accelerator: `${ctrlOrCmd}+Shift+R`,
+        click: mainWindow.webContents.send("reset-context-request"),
       })
     );
 
@@ -302,7 +311,7 @@ ipcMain.on("open-chat-delete-dialog", async (event, { chatId, chatTitle }) => {
     buttons: ["Confirm", "Cancel"],
     defaultId: 0,
     title: "Confirm deletion",
-    message: `Are you sure you want to delete ${chatTitle}?`,
+    message: `Are you sure you want to delete "${chatTitle}"?`,
     detail:
       "The history of this conversation will be deleted from the database. This action cannot be undone.",
   };

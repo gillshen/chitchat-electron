@@ -1,5 +1,8 @@
 const { ipcRenderer } = require("electron");
 const marked = require("marked");
+const tippy = require("tippy.js").default;
+
+tippy.setDefaultProps({ delay: 400 });
 
 window.addEventListener("DOMContentLoaded", () => {
   // ask main.js for a list of chats
@@ -15,7 +18,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // send button
   const sendButton = document.getElementById("send-button");
-
   sendButton.addEventListener("click", sendPrompt);
 
   // send the prompt upon the user pressing enter
@@ -30,11 +32,16 @@ window.addEventListener("DOMContentLoaded", () => {
   // remove formatting before pasting into the prompt box
   textarea.addEventListener("paste", pasteAsPlainText);
 
-  // open search window upon the user pressing ctrl+f or cmd+f
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "f" && (event.ctrlKey || event.metaKey)) {
-      ipcRenderer.send("search-window-open-request");
-    }
+  // context reset button
+  const contextResetButton = document.getElementById("context-reset-button");
+  contextResetButton.addEventListener("click", resetContext);
+
+  const contextResetIcon = document.getElementById("context-reset-icon");
+  contextResetButton.addEventListener("mouseenter", () => {
+    contextResetIcon.src = "assets/reset-hover.png";
+  });
+  contextResetButton.addEventListener("mouseleave", () => {
+    contextResetIcon.src = "assets/reset.png";
   });
 
   // collapsible sidebar toggle
@@ -79,14 +86,34 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // status bar
+  // global shortcut defined in main.js
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "f" && (event.ctrlKey || event.metaKey)) {
+      // open search window on ctrl+f or cmd+f
+      ipcRenderer.send("search-window-open-request");
+      return;
+    }
+    if (event.key === "R" && (event.ctrlKey || event.metaKey)) {
+      // reset context on ctrl+shift+r or cmd+shift+r
+      resetContext();
+      return;
+    }
+  });
+
+  // token counter
   showTokenCount();
+
+  // tooltips
+  tippy("#send-button", { content: "Press Return to send" });
+  tippy("#sidebar-toggle", { content: "Toggle sidebar" });
+  tippy("#token-counter", { content: "Current / max context length" });
+  tippy("#context-reset-button", { content: "Reset context" });
 });
 
 const pasteAsPlainText = (event) => {
   event.preventDefault();
 
-  const clipboardData = event.clipboardData || window.clipboardData;
+  const clipboardData = event.clipboardData;
   const plainText = clipboardData.getData("text/plain");
 
   const selection = window.getSelection();
@@ -194,7 +221,7 @@ class Chat {
     }
   }
 
-  clearContext() {
+  resetContext() {
     this._context = [];
   }
 }
@@ -280,6 +307,23 @@ const sendPrompt = async () => {
   const chatBox = document.getElementById("chat-box");
   setTimeout(() => (chatBox.scrollTop = chatBox.scrollHeight), 100);
 };
+
+const resetContext = () => {
+  if (activeChat !== null) {
+    activeChat.resetContext();
+    showTokenCount();
+  }
+};
+
+const showTokenCount = () => {
+  const tokenCounter = document.getElementById("token-counter");
+  const tokenCount = activeChat?.getContextLength() ?? 0;
+  tokenCounter.innerText = `${tokenCount} / 4097`;
+};
+
+ipcRenderer.on("reset-context-request", () => {
+  resetContext();
+});
 
 ipcRenderer.on("saved-chats-retrieval-failure", (_, error) => {
   throw error; // TODO
@@ -406,12 +450,6 @@ ipcRenderer.on(
   }
 );
 
-const showTokenCount = () => {
-  const statusBar = document.getElementById("status-bar");
-  const tokenCount = activeChat?.getContextLength() ?? 0;
-  statusBar.innerText = `${tokenCount} / 4097`;
-};
-
 ipcRenderer.on("response-error", (_, error) => {
   console.log(error);
   activeResponseRow.showError(error);
@@ -441,6 +479,7 @@ class ChatListItem {
 
     this.icon = document.createElement("img");
     this.icon.src = "assets/speech-bubble.png";
+    this.icon.alt = "";
     this.icon.classList.add("chat-button-icon");
     this.button.appendChild(this.icon);
 
@@ -496,6 +535,10 @@ class ChatListItem {
       this.deleteChat();
       event.stopPropagation();
     });
+
+    tippy(".chat-edit-icon", { content: "Rename conversation" });
+    tippy(".chat-export-icon", { content: "Export to CSV" });
+    tippy(".chat-delete-icon", { content: "Delete conversation" });
   }
 
   _buildIconButton(button, icon, action) {
@@ -505,6 +548,7 @@ class ChatListItem {
     button.classList.add(`chat-${action}-button`);
     icon.classList.add(`chat-${action}-icon`);
     icon.src = iconSource;
+    icon.alt = `chat-${action}-icon`;
     this.button.appendChild(button);
     button.appendChild(icon);
 
@@ -681,6 +725,7 @@ class PromptRow extends MessageRow {
   constructor(text = "") {
     super("prompt", text);
     this.avatar.src = "assets/chat-prompt.png";
+    this.avatar.alt = "user-icon";
   }
 }
 
@@ -688,6 +733,7 @@ class ResponseRow extends MessageRow {
   constructor(text = "") {
     super("response", text);
     this.avatar.src = "assets/chat-response.svg";
+    this.avatar.alt = "gpt-icon";
     this.loadingIcon = null;
   }
 
@@ -695,6 +741,7 @@ class ResponseRow extends MessageRow {
     this.loadingIcon = document.createElement("img");
     this.loadingIcon.id = "loading-icon";
     this.loadingIcon.src = "assets/loading-dots.gif";
+    this.loadingIcon.alt = "loading-gif";
     this.messageBox.appendChild(this.loadingIcon);
   }
 
@@ -704,6 +751,7 @@ class ResponseRow extends MessageRow {
 
   showError(error) {
     this.avatar.src = "assets/chat-error.svg";
+    this.avatar.alt = "gpt-error-icon";
     this.messageBox.classList.remove("response");
     this.messageBox.classList.add("error");
     this.messageBox.innerHTML = error.message;

@@ -14,6 +14,9 @@
 
   --sidebar-width: 18rem;
   --main-width: 45rem;
+
+  --global-font-family: "Open Sans", "Roboto", "Microsoft YaHei UI", Arial,
+    Helvetica, sans-serif;
 }
 
 /* scrollbar appearance */
@@ -49,7 +52,7 @@
 }
 
 body {
-  font-family: "Open Sans", "Microsoft YaHei UI", Arial, Helvetica, sans-serif;
+  font-family: var(--global-font-family);
   font-size: 11pt;
   background-color: var(--system-background);
 
@@ -94,12 +97,15 @@ body {
   justify-self: center;
   align-items: center;
 
-  color: gray;
   background-color: #ddd;
   border: none;
   border-radius: 0.8rem;
   height: 1.6rem;
   width: 1.6rem;
+}
+
+#sidebar-toggle:hover {
+  background-color: #ccc;
 }
 
 #sidebar.collapsed #sidebar-toggle {
@@ -132,7 +138,7 @@ body {
   padding-right: 0.6rem;
   text-align: left;
 
-  font-family: "Open Sans", "Microsoft YaHei UI", Arial, Helvetica, sans-serif;
+  font-family: var(--global-font-family);
   font-size: 10pt;
 
   color: #222;
@@ -296,11 +302,30 @@ body {
 #status-bar {
   font-size: 10pt;
   color: gray;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-  text-align: right;
+  margin-top: 0.6rem;
+  margin-bottom: 0.4rem;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  justify-content: right;
+  align-items: center;
   user-select: none;
   -webkit-user-select: none;
+}
+
+#token-counter {
+  padding: 4px 0;
+}
+
+#context-reset-button {
+  margin-top: 4px;
+  cursor: pointer;
+  border-radius: var(--button-border-radius);
+}
+
+#context-reset-icon {
+  width: 16px;
+  padding: 6px;
 }
 
 #chat-box,
@@ -310,7 +335,7 @@ body {
 }
 
 #chat-box {
-  height: 70vh;
+  height: 66vh;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -368,7 +393,7 @@ body {
   bottom: 8px;
   right: 0px;
   width: 2.4rem;
-  height: 1.8rem;
+  height: 2.4rem;
   display: flex;
   align-items: center;
   border: none;

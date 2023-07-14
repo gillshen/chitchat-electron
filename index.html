@@ -6,17 +6,24 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
     />
+    <link rel="stylesheet" href="tippy.css" />
     <link rel="stylesheet" href="index.css" />
     <title>chitchat</title>
   </head>
   <body>
     <div id="sidebar" collapsed="false">
       <button id="sidebar-toggle">
-        <img id="sidebar-toggle-icon" src="assets/chevron-left.svg" />
+        <img
+          id="sidebar-toggle-icon"
+          src="assets/chevron-left.svg"
+          alt="toggle-sidebar"
+        />
       </button>
+
       <div>
         <button id="new-chat-button" class="chat-button">+ New Chat</button>
       </div>
+
       <div id="chat-list"></div>
     </div>
 
@@ -31,12 +38,22 @@
 
           <div id="send-button-container">
             <button id="send-button">
-              <img src="assets/send.svg" id="send-icon" />
+              <img src="assets/send.svg" id="send-icon" alt="send-prompt" />
             </button>
           </div>
         </div>
 
-        <div id="status-bar"></div>
+        <div id="status-bar">
+          <div id="token-counter"></div>
+
+          <div id="context-reset-button">
+            <img
+              src="assets/reset.png"
+              id="context-reset-icon"
+              alt="reset-context"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </body>
