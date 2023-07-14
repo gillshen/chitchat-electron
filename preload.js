@@ -276,13 +276,13 @@ const startNewChat = () => {
 };
 
 const sendPrompt = async () => {
-  if (requestInProgress) return;
-
-  setRequestInProgress(true);
-
   // retrieve the prompt as plain text
   const textarea = document.getElementById("input-textarea");
-  const prompt = textarea.innerText;
+  const prompt = textarea.innerText.trim();
+
+  if (!prompt || requestInProgress) return;
+
+  setRequestInProgress(true);
 
   // create the prompt container
   activePromptRow = new PromptRow(prompt);
