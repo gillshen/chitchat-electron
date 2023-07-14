@@ -52,8 +52,8 @@ window.addEventListener("DOMContentLoaded", () => {
   sidebarToggle.addEventListener("click", () => {
     sidebar.classList.toggle("collapsed");
     toggleIcon.src = toggleIcon.classList.toggle("collapsed")
-      ? "assets/chevron-right.svg"
-      : "assets/chevron-left.svg";
+      ? "assets/right-chevron.png"
+      : "assets/close-gray.png";
   });
 
   // resizing
