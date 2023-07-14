@@ -198,6 +198,7 @@ body {
 
 .chat-button-icon,
 .chat-edit-icon,
+.chat-export-icon,
 .chat-delete-icon {
   width: 16px;
   height: 16px;
@@ -208,7 +209,7 @@ body {
 }
 
 .chat-button-text {
-  flex: 1 0 calc(var(--sidebar-width) - 9.4rem);
+  flex: 1 0 calc(var(--sidebar-width) - 10.6rem);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -230,6 +231,7 @@ body {
 }
 
 .chat-edit-button,
+.chat-export-button,
 .chat-delete-button {
   flex: 0 0 auto;
   display: none;
@@ -239,12 +241,14 @@ body {
 }
 
 .chat-edit-button.visible,
+.chat-export-button.visible,
 .chat-delete-button.visible {
   display: flex;
-  margin-left: 2px;
+  margin-left: 1px; /* keep outline intact when focused */
 }
 
 .chat-edit-button.visible:focus,
+.chat-export-button.visible:focus,
 .chat-delete-button.visible:focus {
   outline: 1px solid #84c1ec;
   border-radius: var(--button-border-radius);
@@ -252,6 +256,8 @@ body {
 
 #chat-list.disabled .chat-edit-button,
 #chat-list.disabled .chat-edit-button.visible,
+#chat-list.disabled .chat-export-button,
+#chat-list.disabled .chat-export-button.visible,
 #chat-list.disabled .chat-delete-button,
 #chat-list.disabled .chat-delete-button.visible {
   display: none;
@@ -478,9 +484,7 @@ a {
   position: fixed;
   top: 0;
   left: 0;
-  background-color: gray;
-  background-color: #6da6e0;
-  background-color: #ddd;
+  background-color: #5f9ad5;
   height: 4rem;
   display: flex;
   justify-content: center;
@@ -531,7 +535,7 @@ a {
 }
 
 .match-text:hover {
-  outline: 1px solid #5f98d1;
+  outline: 1px solid #5f9ad5;
 }
 
 .match-text.prompt {

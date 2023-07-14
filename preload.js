@@ -450,22 +450,16 @@ class ChatListItem {
     this.button.appendChild(this.textDiv);
 
     this.editButton = document.createElement("button");
-    this.editButton.classList.add("chat-edit-button");
-    this.button.appendChild(this.editButton);
-
     this.editIcon = document.createElement("img");
-    this.editIcon.classList.add("chat-edit-icon");
-    this.editIcon.src = "assets/edit-chat.png";
-    this.editButton.appendChild(this.editIcon);
+    this._buildIconButton(this.editButton, this.editIcon, "edit");
+
+    this.exportButton = document.createElement("button");
+    this.exportIcon = document.createElement("img");
+    this._buildIconButton(this.exportButton, this.exportIcon, "export");
 
     this.deleteButton = document.createElement("button");
-    this.deleteButton.classList.add("chat-delete-button");
-    this.button.appendChild(this.deleteButton);
-
     this.deleteIcon = document.createElement("img");
-    this.deleteIcon.classList.add("chat-delete-icon");
-    this.deleteIcon.src = "assets/delete-chat.png";
-    this.deleteButton.appendChild(this.deleteIcon);
+    this._buildIconButton(this.deleteButton, this.deleteIcon, "delete");
 
     this.button.addEventListener("mouseenter", () => {
       if (this.textDiv.contentEditable !== "true") this._showButtons();
@@ -488,36 +482,45 @@ class ChatListItem {
     // remove formatting before pasting into the text div
     this.textDiv.addEventListener("paste", pasteAsPlainText);
 
-    this.editButton.addEventListener("mouseenter", () => {
-      this.editIcon.src = "assets/edit-chat-hover.png";
-    });
-    this.editButton.addEventListener("mouseleave", () => {
-      this.editIcon.src = "assets/edit-chat.png";
-    });
     this.editButton.addEventListener("click", (event) => {
       this.editTitle();
       event.stopPropagation();
     });
 
-    this.deleteButton.addEventListener("mouseenter", () => {
-      this.deleteIcon.src = "assets/delete-chat-hover.png";
+    this.exportButton.addEventListener("click", (event) => {
+      this.exportChat();
+      event.stopPropagation();
     });
-    this.deleteButton.addEventListener("mouseleave", () => {
-      this.deleteIcon.src = "assets/delete-chat.png";
-    });
+
     this.deleteButton.addEventListener("click", (event) => {
       this.deleteChat();
       event.stopPropagation();
     });
   }
 
+  _buildIconButton(button, icon, action) {
+    const iconSource = `assets/${action}-chat.png`;
+    const iconAltSource = `assets/${action}-chat-hover.png`;
+
+    button.classList.add(`chat-${action}-button`);
+    icon.classList.add(`chat-${action}-icon`);
+    icon.src = iconSource;
+    this.button.appendChild(button);
+    button.appendChild(icon);
+
+    button.addEventListener("mouseenter", () => (icon.src = iconAltSource));
+    button.addEventListener("mouseleave", () => (icon.src = iconSource));
+  }
+
   _showButtons() {
     this.editButton.classList.add("visible");
+    this.exportButton.classList.add("visible");
     this.deleteButton.classList.add("visible");
   }
 
   _hideButtons() {
     this.editButton.classList.remove("visible");
+    this.exportButton.classList.remove("visible");
     this.deleteButton.classList.remove("visible");
   }
 
@@ -598,6 +601,13 @@ class ChatListItem {
     this.textDiv.addEventListener("keydown", onKeyDown);
     this.textDiv.addEventListener("focusout", onFocusOut);
     document.addEventListener("click", onClick);
+  }
+
+  exportChat() {
+    ipcRenderer.send("open-chat-export-dialog", {
+      chatId: this.chatId,
+      chatTitle: this.textDiv.innerText,
+    });
   }
 
   deleteChat() {

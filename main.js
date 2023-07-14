@@ -16,6 +16,7 @@ const { encoding_for_model } = require("tiktoken");
 
 const Fuse = require("fuse.js");
 const sqlite3 = require("sqlite3");
+const { stringify: csvStringify } = require("csv-stringify/sync");
 
 // Set up the chat history database
 const db = new sqlite3.Database("chat_history.sqlite");
@@ -236,6 +237,64 @@ ipcMain.on(
     );
   }
 );
+
+ipcMain.on("open-chat-export-dialog", async (_, { chatId, chatTitle }) => {
+  // sanitize the chat title
+  // for use in the default filename
+  const baseName = chatTitle.replace(/[<>:;"/\\|?*\x00-\x1F]/g, "_");
+
+  // timestamp to be appended to the default filename
+  const timestamp = new Date()
+    .toISOString()
+    .replace("T", " ")
+    .replace(/[:.Z]/g, "");
+
+  const dialogOptions = {
+    title: "Export conversation history",
+    defaultPath: path.join(__dirname, `${baseName} ${timestamp}`),
+    filters: [{ name: "CSV File", extensions: ["csv"] }],
+  };
+  const { filePath, canceled } = await dialog.showSaveDialog(
+    mainWindow,
+    dialogOptions
+  );
+  if (canceled) return;
+
+  // if a file path is provided
+  try {
+    const rows = await execSelect(
+      `
+    SELECT 
+      model,
+      system_message,
+      prompt,
+      parameters,
+      completion,
+      completion_created,
+      finish_reason
+    FROM MessageListView 
+      WHERE chat_id = ?`,
+      [chatId]
+    );
+    // convert utc time to iso datetime format
+    const dateConvertedRows = rows.map((row) => {
+      const convertedDate = new Date(row.completion_created * 1000);
+      return { ...row, completion_created: convertedDate.toISOString() };
+    });
+
+    const csv = csvStringify(dateConvertedRows, { header: true });
+    fs.writeFileSync(filePath, csv);
+
+    dialog.showMessageBoxSync(mainWindow, {
+      type: "info",
+      message: "Export successful",
+    });
+  } catch (error) {
+    if (error) {
+      dialog.showErrorBox("Export failed", error.toString());
+    }
+  }
+});
 
 ipcMain.on("open-chat-delete-dialog", async (event, { chatId, chatTitle }) => {
   const dialogOptions = {
