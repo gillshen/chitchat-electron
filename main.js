@@ -98,19 +98,16 @@ const createMainWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1150,
     height: 750,
+    icon: path.join(__dirname, "assets", "chitchat.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       sandbox: false,
     },
-    // make the window frameless
-    // frame: false,
-    // titleBarStyle: "hidden",
-    // titleBarOverlay: { color: "white", symbolColor: "darkgray" },
     nodeIntegration: true,
   });
 
   // remove the menu bar
-  // this also removes the context menu, which shall be rebuilt below
+  // this also removes the context menu, rebuilt below
   Menu.setApplicationMenu(null);
 
   mainWindow.webContents.on("will-navigate", (event, url) => {

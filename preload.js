@@ -108,6 +108,9 @@ window.addEventListener("DOMContentLoaded", () => {
   tippy("#sidebar-toggle", { content: "Toggle sidebar" });
   tippy("#token-counter", { content: "Current / max context length" });
   tippy("#context-reset-button", { content: "Reset context" });
+
+  // show what this is all about
+  showChitAndChat();
 });
 
 const pasteAsPlainText = (event) => {
@@ -268,11 +271,14 @@ const startNewChat = () => {
 
   activeChat = null;
   document.getElementById("chat-box").innerHTML = "";
+
   const chatList = document.getElementById("chat-list");
   for (const chatButton of chatList.children) {
     chatButton.classList.remove("selected");
   }
+
   showTokenCount();
+  showChitAndChat();
 };
 
 const sendPrompt = async () => {
@@ -283,6 +289,12 @@ const sendPrompt = async () => {
   if (!prompt || requestInProgress) return;
 
   setRequestInProgress(true);
+
+  // remove chit-and-chat if still there
+  const container = document.getElementById("chit-and-chat-container");
+  if (container !== null) {
+    document.getElementById("chat-box").removeChild(container);
+  }
 
   // create the prompt container
   activePromptRow = new PromptRow(prompt);
@@ -319,6 +331,20 @@ const showTokenCount = () => {
   const tokenCounter = document.getElementById("token-counter");
   const tokenCount = activeChat?.getContextLength() ?? 0;
   tokenCounter.innerText = `${tokenCount} / 4097`;
+};
+
+const showChitAndChat = () => {
+  const chatBox = document.getElementById("chat-box");
+
+  const container = document.createElement("div");
+  container.id = "chit-and-chat-container";
+  chatBox.appendChild(container);
+
+  const chitAndChat = document.createElement("img");
+  chitAndChat.id = "chit-and-chat";
+  chitAndChat.src = "assets/chit-and-chat.png";
+  chitAndChat.alt = "chit-and-chat";
+  container.appendChild(chitAndChat);
 };
 
 ipcRenderer.on("reset-context-request", () => {
@@ -401,6 +427,7 @@ ipcRenderer.on("chat-deleted", (_, deletedChatId) => {
     savedChats.delete(deletedChatId);
     activeChat = null;
     document.getElementById("chat-box").innerHTML = "";
+    showChitAndChat();
   }
   const chatListItem = ChatListItem.map.get(deletedChatId);
   chatListItem.remove();
