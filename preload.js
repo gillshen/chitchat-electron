@@ -188,7 +188,7 @@ class Chat {
     return sum;
   }
 
-  trimContext(maximum = 4097, reserve = 410) {
+  trimContext(maximum = 4097, reserve = 819) {
     while (this.getContextLength() + reserve > maximum) {
       this._context.shift();
     }
@@ -545,6 +545,15 @@ class ChatListItem {
     if (activeChat !== selectedChat) {
       activeChat = selectedChat;
       loadHistory(selectedChat.historyArray());
+
+      // if this conversation is being selected for the first time,
+      // its context has not been trimed - while this would't result
+      // in an API error (trimming will be done before a request is made)
+      // it might cause showTokenCount() to show an alarmingly high count
+      //
+      // either we trim all conversations at the start or we trim each
+      // upon the first selection - the latter is clearly preferable
+      activeChat.trimContext();
       showTokenCount();
     }
   }
